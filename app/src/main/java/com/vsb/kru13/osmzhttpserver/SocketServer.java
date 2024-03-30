@@ -1,13 +1,13 @@
 package com.vsb.kru13.osmzhttpserver;
 
 import android.content.res.AssetManager;
-import android.os.Environment;
 import android.util.Log;
+
+import com.vsb.kru13.osmzhttpserver.http.HttpRequest;
+import com.vsb.kru13.osmzhttpserver.http.SimpleHttpParser;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -15,7 +15,6 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
 
 public class SocketServer extends Thread {
 
@@ -56,7 +55,8 @@ public class SocketServer extends Thread {
                 OutputStream o = s.getOutputStream();
                 BufferedWriter out = new BufferedWriter(new OutputStreamWriter(o));
 
-                String file = resolvePage(s.getInputStream());
+                HttpRequest request = SimpleHttpParser.parseRequest(s.getInputStream());
+                String file = request.getUri();
                 writeFile(out, file);
 
                 out.flush();
@@ -106,9 +106,9 @@ public class SocketServer extends Thread {
 //        String str_data = new String(buffer);
     }
 
-    private String resolvePage(InputStream inputStream) {
-        BufferedReader in = new BufferedReader(new InputStreamReader(inputStream));
-        in.readLine();
+    private String resolvePage(HttpRequest request) {
+
+
         return "TODO";
     }
 
