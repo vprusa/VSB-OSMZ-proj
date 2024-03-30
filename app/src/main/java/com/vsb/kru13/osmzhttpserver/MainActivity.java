@@ -46,7 +46,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         READ_EXTERNAL_STORAGE
                 );
             } else {
-                s = new SocketServer();
+                s = new SocketServer(getAssets());
                 s.start();
             }
         }
@@ -69,7 +69,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             case READ_EXTERNAL_STORAGE:
                 if ((grantResults.length > 0) && (grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
-                    s = new SocketServer();
+                    s = new SocketServer(getAssets());
                     s.start();
                 }
                 break;
