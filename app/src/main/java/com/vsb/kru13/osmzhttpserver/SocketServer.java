@@ -4,10 +4,13 @@ import android.content.res.AssetManager;
 import android.util.Log;
 
 import com.vsb.kru13.osmzhttpserver.http.HttpRequest;
+import com.vsb.kru13.osmzhttpserver.http.HttpResponse;
 import com.vsb.kru13.osmzhttpserver.http.SimpleHttpParser;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -18,17 +21,28 @@ import java.net.Socket;
 
 public class SocketServer extends Thread {
 
-    private final AssetManager assets;
+    private static String HTTP_NOT_FOUND_LABEL = "Not Found";
+    private static String HTTP_VERISON_1_0 = "HTTP/1.0";
+
+    private static HttpResponse HTTP_404;
+
+    static {
+        HTTP_404 = new HttpResponse(404, HTTP_NOT_FOUND_LABEL);
+        HTTP_404.setVersion(HTTP_VERISON_1_0);
+        HTTP_404.setBody(HTTP_NOT_FOUND_LABEL);
+    }
+
     private static String WEB_DIR = "web";
     private static String DEFAULT_PAGE = "index.html";
+    private final File sdCardDir;
 
     ServerSocket serverSocket;
     public final int port = 12345;
     boolean bRunning;
 
-    // TODO DI
-    public SocketServer(AssetManager assets) {
-        this.assets = assets;
+    // TODO lombok, DI
+    public SocketServer(AssetManager assets, File sdCardDir) {
+        this.sdCardDir = sdCardDir;
     }
 
     public void close() {
@@ -64,53 +78,61 @@ public class SocketServer extends Thread {
                 s.close();
                 Log.d("SERVER", "Socket Closed");
             }
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             if (serverSocket != null && serverSocket.isClosed())
                 Log.d("SERVER", "Normal exit");
             else {
                 Log.d("SERVER", "Error");
                 e.printStackTrace();
             }
-        }
-        finally {
+        } finally {
             serverSocket = null;
             bRunning = false;
         }
     }
 
     private void writeFile(BufferedWriter bufferedWriter, String page) throws IOException {
-        final String file;
-        if (page == null) {
-            file = WEB_DIR + "/" + page + ".html";
+        final String filePath;
+        // simple URI router
+        if (page != null && !page.isEmpty() && !page.equalsIgnoreCase("/")) {
+            // if (page.matches(".*\\..*")) { // ^[\w,\s-]+\.[A-Za-z]{2,}$
+            if (page.matches("^[\\w,\\s-]+\\.[A-Za-z]{2,}$")) {
+                // is page a filename
+                filePath = WEB_DIR + "/" + page;
+            } else {
+                filePath = WEB_DIR + "/" + page + ".html";
+            }
         } else {
-            file = WEB_DIR + "/index.html";
+            filePath = WEB_DIR + "/" + DEFAULT_PAGE;
         }
-        InputStream inputStream = assets.open(file);
-        /*
-        int size = inputStream.available();
-        byte[] buffer = new byte[size]; //declare the size of the byte array with size of the file
-        inputStream.read(buffer); //read file
-        inputStream.close(); //close file
-        */
-//        out.write(buffer);
+        final File fileOnSdCard = new File(sdCardDir, filePath);
 
-        final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
-        String line;
-        while ((line = bufferedReader.readLine()) != null) {
-            bufferedWriter.write(line);
-            bufferedWriter.newLine(); // Add a new line for each line read.
+        if (fileOnSdCard.exists()) {
+            final InputStream inputStream = new FileInputStream(fileOnSdCard);
+            final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+            final HttpResponse response = createResponse(bufferedReader);
+            bufferedWriter.write(response.toString());
+        } else {
+            bufferedWriter.write(HTTP_404.toString()); // TODO send response 404
         }
         bufferedWriter.flush(); // Ensure all data is written out.
-// Store text file data in the string variable
-//        String str_data = new String(buffer);
     }
 
-    private String resolvePage(HttpRequest request) {
 
-
-        return "TODO";
+    public HttpResponse createResponse(BufferedReader bufferedReader) throws IOException {
+        StringBuilder stringBuilder = new StringBuilder();
+        String line;
+        while ((line = bufferedReader.readLine()) != null) {
+            stringBuilder.append(line);
+            // bufferedWriter.newLine();
+        }
+        return createResponse(stringBuilder.toString());
     }
-
+    public HttpResponse createResponse(String body) {
+        HttpResponse response = new HttpResponse(200, "OK");
+        response.addHeader("Content-Type", "text/plain");
+        response.addHeader("Content-Length", "" + body.length());
+        response.setBody(body);
+        return response;
+    }
 }
-

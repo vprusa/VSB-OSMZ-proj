@@ -7,9 +7,12 @@ import androidx.core.content.ContextCompat;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.Environment;
 import android.view.Menu;
 import android.view.View;
 import android.widget.Button;
+
+import java.io.File;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
@@ -46,7 +49,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         READ_EXTERNAL_STORAGE
                 );
             } else {
-                s = new SocketServer(getAssets());
+                File sdcard = Environment.getExternalStorageDirectory();
+                s = new SocketServer(getAssets(), sdcard);
                 s.start();
             }
         }
@@ -69,7 +73,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             case READ_EXTERNAL_STORAGE:
                 if ((grantResults.length > 0) && (grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
-                    s = new SocketServer(getAssets());
+                    File sdcard = Environment.getExternalStorageDirectory();
+                    s = new SocketServer(getAssets(), sdcard);
                     s.start();
                 }
                 break;
