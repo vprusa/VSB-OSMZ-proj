@@ -11,6 +11,7 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -95,9 +96,9 @@ public class SocketServer extends Thread {
         final String filePath;
         // simple URI router
         if (page != null && !page.isEmpty() && !page.equalsIgnoreCase("/")) {
-            // if (page.matches(".*\\..*")) { // ^[\w,\s-]+\.[A-Za-z]{2,}$
-            if (page.matches("^[\\w,\\s-]+\\.[A-Za-z]{2,}$")) {
-                // is page a filename
+            // is page a filename?
+             if (page.matches(".*\\..*")) { // ^[\w,\s-]+\.[A-Za-z]{2,}$
+//            if (page.matches("^[\\w,\\s-]+\\.[A-Za-z]{2,}$")) {
                 filePath = WEB_DIR + "/" + page;
             } else {
                 filePath = WEB_DIR + "/" + page + ".html";
@@ -108,10 +109,16 @@ public class SocketServer extends Thread {
         final File fileOnSdCard = new File(sdCardDir, filePath);
 
         if (fileOnSdCard.exists()) {
-            final InputStream inputStream = new FileInputStream(fileOnSdCard);
-            final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
-            final HttpResponse response = createResponse(bufferedReader);
-            bufferedWriter.write(response.toString());
+            try (final InputStream inputStream = new FileInputStream(fileOnSdCard)) {
+                final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+                final HttpResponse response = createResponse(bufferedReader);
+                bufferedWriter.write(response.toString());
+            } catch (FileNotFoundException e) {
+                Log.d("FileNotFoundException", e.toString());
+            } catch (IOException e) {
+                Log.d("IOException", e.toString());
+            }
+
         } else {
             bufferedWriter.write(HTTP_404.toString()); // TODO send response 404
         }
