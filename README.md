@@ -3,6 +3,9 @@
 
 # notest
 
+```
+~/Android/Sdk/platform-tools/adb forward tcp:12345 tcp:12345
+```
 
 2. enable external storage maniuplation
 

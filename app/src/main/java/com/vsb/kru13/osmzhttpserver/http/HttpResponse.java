@@ -17,6 +17,16 @@ public class HttpResponse {
         this.reasonPhrase = reasonPhrase;
     }
 
+    public HttpResponse(
+            int statusCode,
+            String reasonPhrase,
+            String body
+    ) {
+        this.statusCode = statusCode;
+        this.reasonPhrase = reasonPhrase;
+        this.body = body;
+    }
+
     public void setVersion(String version) {
         this.version = version;
     }
