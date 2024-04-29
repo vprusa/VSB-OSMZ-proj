@@ -11,6 +11,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -40,6 +41,10 @@ public class SocketServer extends Thread {
 
     private static int MAX_THREADS = 5;
 
+    private static String ACCESS_LOG_FILE_PATH = "access.log";
+
+    private static String ERRORS_LOG_FILE_PATH = "errors.log";
+
     /**
      * https://www.rfc-editor.org/rfc/rfc7231#section-6.5
      */
@@ -68,6 +73,23 @@ public class SocketServer extends Thread {
         this.sdCardDir = sdCardDir;
         this.semaphore = new Semaphore(maxThreads);
         this.threadPool = Executors.newFixedThreadPool(maxThreads);
+
+        final File accessFile = new File(sdCardDir, ACCESS_LOG_FILE_PATH);
+        final File errorsFile = new File(sdCardDir, ERRORS_LOG_FILE_PATH);
+        if (!accessFile.exists()) {
+            try {
+                accessFile.createNewFile();
+            } catch (IOException e) {
+                Log.e("FILE", "Unable to create access log files on SD card", e);
+            }
+        }
+        if (!errorsFile.exists()) {
+            try {
+                errorsFile.createNewFile();
+            } catch (IOException e) {
+                Log.e("FILE", "Unable to create error log files on SD card", e);
+            }
+        }
     }
 
     public void close() {
@@ -80,6 +102,36 @@ public class SocketServer extends Thread {
         }
     }
 
+    private void logServerError(Exception e) {
+        Log.e("SERVER", "Server error", e);
+    }
+
+    private void appLog(String filePath, String tag, Socket s, String msg) {
+        final File f = new File(sdCardDir, filePath);
+        if (!f.exists()) {
+            String address = s != null ? s.getInetAddress().getHostAddress() : "unknown";
+            String log = String.format("{} - address: {}, msg: {}\n\r", tag, address, msg);
+            Log.e(tag, log);
+            if (f.exists() && f.canWrite()) {
+                // TODO add semaphore?
+                try (FileWriter writer = new FileWriter(f)) {
+                    writer.write(log);
+                    writer.flush();
+                } catch (IOException e) {
+                    Log.e("FILE_WRITE", "Writing access log error", e);
+                }
+            }
+        }
+    }
+
+    private void logAccess(Socket s, String msg) {
+        appLog(ACCESS_LOG_FILE_PATH, "ACCESS_LOG", s, msg);
+    }
+
+    private void logError(Socket s, String msg) {
+        appLog(ERRORS_LOG_FILE_PATH, "ERROR_LOG", s, msg);
+    }
+
     public void run() {
         try {
             serverSocket = new ServerSocket(port);
@@ -87,13 +139,16 @@ public class SocketServer extends Thread {
             while (bRunning) {
                 Socket client = serverSocket.accept();
                 if (semaphore.tryAcquire()) {
+                    logAccess(client, "acquired");
                     threadPool.execute(() -> {
                         try {
                             handleClient(client);
                         } catch (IOException e) {
-                            throw new RuntimeException(e);
+                            logServerError(e);
+                            logError(client, "server error");
                         } finally {
                             semaphore.release();
+                            logAccess(client, "released");
                         }
                     });
                 } else {
@@ -101,11 +156,13 @@ public class SocketServer extends Thread {
                 }
             }
         } catch (IOException e) {
-            Log.e("SERVER", "Server error", e);
+            logServerError(e);
+            logError(null, "server error");
         }
     }
 
     public void handleClient(Socket client) throws IOException {
+        logAccess(client, "Socket Accepted");
         Log.d("SERVER", "Socket Accepted");
 
         OutputStream o = client.getOutputStream();
@@ -119,6 +176,7 @@ public class SocketServer extends Thread {
 
         // client.close(); // TODO reevaluate closing the socket
         Log.d("SERVER", "Socket Closed");
+        logAccess(client, "Socket Closed");
     }
 
     private void sendServerBusy(Socket client) {
