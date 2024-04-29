@@ -27,8 +27,23 @@ public class HttpResponse {
         this.body = body;
     }
 
+    public HttpResponse(
+            int statusCode,
+            String reasonPhrase,
+            String body,
+            Map<String, String> headers
+    ) {
+        this(statusCode, reasonPhrase, body);
+        this.headers.putAll(headers);
+    }
+
+
     public void setVersion(String version) {
         this.version = version;
+    }
+
+    public String getVersion(){
+        return version;
     }
 
     public void addHeader(String key, String value) {

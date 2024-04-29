@@ -19,6 +19,8 @@ import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URLDecoder;
+import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
@@ -31,8 +33,36 @@ public class SocketServer extends Thread {
     private Semaphore semaphore;
     private ExecutorService threadPool;
 
+    private static String WEB_DIR = "web";
+    private static String DEFAULT_PAGE = "index.html";
+
+    private static String HTTP_NOT_FOUND_LABEL = "Not Found";
+
+    private static int MAX_THREADS = 5;
+
+    /**
+     * https://www.rfc-editor.org/rfc/rfc7231#section-6.5
+     */
+    private static HttpResponse HTTP_RESP_404 = new HttpResponse(
+            404, HTTP_NOT_FOUND_LABEL, HTTP_NOT_FOUND_LABEL
+    );
+
+    /**
+     * https://en.wikipedia.org/wiki/Hyper_Text_Coffee_Pot_Control_Protocol
+     */
+    private static HttpResponse HTTP_RESP_418 = new HttpResponse(
+            418, "418", "I'm a teapot"
+    );
+
+    private static HttpResponse HTTP_RESP_503 = new HttpResponse(
+            503, "Service Unavailable",
+            "<html><body><h1>503 Service Unavailable</h1>" +
+                    "<p>Server too busy. Please try again later.</p></body></html>",
+            Collections.singletonMap("Content-Type", "text/html; charset=UTF-8")
+    );
+
     public SocketServer(File sdCardDir) {
-        this(sdCardDir, 5);
+        this(sdCardDir, MAX_THREADS);
     }
     public SocketServer(File sdCardDir, int maxThreads) {
         this.sdCardDir = sdCardDir;
@@ -75,30 +105,6 @@ public class SocketServer extends Thread {
         }
     }
 
-    /*
-    private void handleClient(Socket client) {
-        try {
-            OutputStream o = client.getOutputStream();
-            BufferedWriter out = new BufferedWriter(new OutputStreamWriter(o));
-
-            HttpRequest request = SimpleHttpParser.parseRequest(client.getInputStream());
-            String file = request.getUri();
-            writeFile(out, file, o);
-
-            out.flush();
-        } catch (IOException e) {
-            Log.e("SERVER", "Error handling client", e);
-        } finally {
-            try {
-                client.close();
-            } catch (IOException e) {
-                Log.e("SERVER", "Error closing client socket", e);
-            }
-        }
-        Log.d("SERVER", "Socket Closed");
-    }
-    */
-
     public void handleClient(Socket client) throws IOException {
         Log.d("SERVER", "Socket Accepted");
 
@@ -117,7 +123,8 @@ public class SocketServer extends Thread {
 
     private void sendServerBusy(Socket client) {
         try (OutputStream out = client.getOutputStream()) {
-            out.write("HTTP/1.1 503 Service Unavailable\r\n\r\nServer too busy. Please try again later.".getBytes());
+            out.write(HTTP_RESP_503.toString().getBytes());
+            out.flush();
         } catch (IOException e) {
             Log.e("SERVER", "Error sending 503 Service Unavailable", e);
         } finally {
@@ -128,25 +135,6 @@ public class SocketServer extends Thread {
             }
         }
     }
-
-    private static String WEB_DIR = "web";
-    private static String DEFAULT_PAGE = "index.html";
-
-    private static String HTTP_NOT_FOUND_LABEL = "Not Found";
-
-    /**
-     * https://www.rfc-editor.org/rfc/rfc7231#section-6.5
-     */
-    private static HttpResponse HTTP_RESP_404 = new HttpResponse(
-            404, HTTP_NOT_FOUND_LABEL, HTTP_NOT_FOUND_LABEL
-    );
-
-    /**
-     * https://en.wikipedia.org/wiki/Hyper_Text_Coffee_Pot_Control_Protocol
-     */
-    private static HttpResponse HTTP_RESP_418 = new HttpResponse(
-            418, "418", "I'm a teapot"
-    );
 
     private void writeFile(BufferedWriter bufferedWriter, String page, OutputStream o) throws IOException {
         final String filePath;
@@ -173,6 +161,8 @@ public class SocketServer extends Thread {
                     result = null;
                     byte[] fileContent = loadFileContents(fileOnSdCard.getPath());
 
+//                    o.write("HTTP/1.1 200 OK\r\n".getBytes());
+                    o.write(response.getVersion().getBytes());
                     o.write("HTTP/1.1 200 OK\r\n".getBytes());
                     if (page.matches(".*\\.png")) {
                         o.write("Content-Type: image/png\r\n".getBytes());
@@ -220,35 +210,6 @@ public class SocketServer extends Thread {
         response.setBody(body);
         return response;
     }
-/*
-
-    // The writeFile method and other methods should be moved here if not included above
-
-    private void writeFile(BufferedWriter out, String requestedFile, OutputStream outputStream) throws IOException {
-        final File fileOnSdCard = new File(sdCardDir, requestedFile);
-
-        if (!fileOnSdCard.exists()) {
-            sendHttpResponse(outputStream, "HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\n\r\n<html><body><h1>404 Not Found</h1><p>The requested resource was not found on this server.</p></body></html>");
-            return;
-        }
-
-        try {
-            if (requestedFile.matches(".*\\.(png|jpg)")) {
-                // Serve image files as binary data
-                byte[] fileContent = loadFileContents(fileOnSdCard.getPath());
-                String contentType = requestedFile.endsWith(".png") ? "image/png" : "image/jpeg";
-                sendHttpResponse(outputStream, "HTTP/1.1 200 OK\r\nContent-Type: " + contentType + "\r\nContent-Length: " + fileContent.length + "\r\n\r\n", fileContent);
-            } else {
-                // Serve text or HTML files
-                String content = new String(loadFileContents(fileOnSdCard.getPath()), "UTF-8");
-                sendHttpResponse(outputStream, "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Length: " + content.length() + "\r\n\r\n" + content);
-            }
-        } catch (IOException e) {
-            Log.e("SERVER", "Error reading file", e);
-            sendHttpResponse(outputStream, "HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/html\r\n\r\n<html><body><h1>500 Internal Server Error</h1><p>Error reading file from disk.</p></body></html>");
-        }
-    }
-*/
 
     private byte[] loadFileContents(String filePath) throws IOException {
         FileInputStream fis = new FileInputStream(filePath);
@@ -256,17 +217,6 @@ public class SocketServer extends Thread {
         fis.read(data);
         fis.close();
         return data;
-    }
-
-    private void sendHttpResponse(OutputStream outputStream, String headers, byte[] content) throws IOException {
-        outputStream.write(headers.getBytes());
-        outputStream.write(content);
-        outputStream.flush();
-    }
-
-    private void sendHttpResponse(OutputStream outputStream, String response) throws IOException {
-        outputStream.write(response.getBytes());
-        outputStream.flush();
     }
 
 }
