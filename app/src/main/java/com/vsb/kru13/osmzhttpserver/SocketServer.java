@@ -81,7 +81,7 @@ public class SocketServer extends Thread {
 
                 out.flush();
 
-//                s.close();
+//                s.close(); // TODO reevaluate closing the socket
                 Log.d("SERVER", "Socket Closed");
             }
         } catch (IOException e) {
@@ -99,28 +99,26 @@ public class SocketServer extends Thread {
 
     public static byte[] loadFileContents(String filePath) throws IOException {
         File file = new File(filePath);
-
         if (!file.exists()) {
             throw new IOException("File does not exist: " + filePath);
         }
-
         long fileSize = file.length();
         if (fileSize > Integer.MAX_VALUE) {
             throw new IOException("File is too large to load into a byte array.");
         }
-
         byte[] buffer = new byte[(int) fileSize];
         try (FileInputStream fis = new FileInputStream(file)) {
             int bytesRead = 0;
             int bytesToRead = buffer.length;
             while (bytesRead < bytesToRead) {
                 int result = fis.read(buffer, bytesRead, bytesToRead - bytesRead);
-                if (result == -1) break; // End of file reached
+                if (result == -1) break; // EOF
                 bytesRead += result;
             }
 
             if (bytesRead < bytesToRead) {
-                throw new IOException("Unexpected end of file; was expecting " + bytesToRead + " bytes, but only received " + bytesRead);
+                throw new IOException("Unexpected end of file; was expecting " + bytesToRead
+                        + " bytes, but only received " + bytesRead);
             }
 
             return buffer;
@@ -133,7 +131,7 @@ public class SocketServer extends Thread {
         if (page != null && !page.isEmpty() && !page.equalsIgnoreCase("/")) {
             // is page a filename?
              if (page.matches(".*\\..*")) { // ^[\w,\s-]+\.[A-Za-z]{2,}$
-//            if (page.matches("^[\\w,\\s-]+\\.[A-Za-z]{2,}$")) {
+                // if (page.matches("^[\\w,\\s-]+\\.[A-Za-z]{2,}$")) {
                 filePath = WEB_DIR + "/" + page;
             } else {
                 filePath = WEB_DIR + "/" + page + ".html";
@@ -150,19 +148,7 @@ public class SocketServer extends Thread {
                 final HttpResponse response = createResponse(bufferedReader);
                 if (page.matches(".*\\.png") || page.matches(".*\\.jpg")) {
                     result = null;
-//                        response.addHeader("Content-Type", "image/png");
-//                        result = response.toString().getBytes();
-//                        o.write();
-//                    byte[] fileContent = new byte[(int) fileOnSdCard.length()];
-//                    inputStream.read(fileContent, 0, (int) fileOnSdCard.length());
-                    byte[] fileData = loadFileContents(fileOnSdCard.getPath());
-                    byte[] fileContent = fileData; //new byte[(int) fileOnSdCard.length()];
-                    /*int offset = 0;
-                    int numRead = 0;
-                    while (offset < fileContent.length && (numRead=inputStream.read(fileContent, offset, fileContent.length - offset)) >= 0) {
-                        offset += numRead;
-                    }*/
-
+                    byte[] fileContent = loadFileContents(fileOnSdCard.getPath());
 
                     o.write("HTTP/1.1 200 OK\r\n".getBytes());
                     if (page.matches(".*\\.png")) {
@@ -172,13 +158,9 @@ public class SocketServer extends Thread {
                     }
                     o.write(("Content-Length: " + fileContent.length + "\r\n").getBytes());
                     o.write("\r\n".getBytes()); // End of headers
-                    //Log.d("fileContent", fileContent.toString());
                     o.write(fileContent);
                     o.flush();
                     bufferedWriter.flush();
-//                    } else if (page.matches(".*\\.jpg")) {
-//                        response.addHeader("Content-Type", "image/jpg");
-//                        result = response.toString().getBytes();
                 } else {
                     response.addHeader("Content-Type", "text/plain");
                     result = response.toString();
