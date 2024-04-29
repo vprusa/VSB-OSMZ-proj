@@ -19,8 +19,118 @@ import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URLDecoder;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 
 public class SocketServer extends Thread {
+    private ServerSocket serverSocket;
+    public final int port = 12345;
+    private boolean bRunning;
+    private final File sdCardDir;
+    private Semaphore semaphore;
+    private ExecutorService threadPool;
+
+    public SocketServer(File sdCardDir) {
+        this(sdCardDir, 5);
+    }
+    public SocketServer(File sdCardDir, int maxThreads) {
+        this.sdCardDir = sdCardDir;
+        this.semaphore = new Semaphore(maxThreads);
+        this.threadPool = Executors.newFixedThreadPool(maxThreads);
+    }
+
+    public void close() {
+        try {
+            bRunning = false;
+            serverSocket.close();
+            threadPool.shutdownNow();
+        } catch (IOException e) {
+            Log.e("SERVER", "Error while closing server", e);
+        }
+    }
+
+    public void run() {
+        try {
+            serverSocket = new ServerSocket(port);
+            bRunning = true;
+            while (bRunning) {
+                Socket client = serverSocket.accept();
+                if (semaphore.tryAcquire()) {
+                    threadPool.execute(() -> {
+                        try {
+                            handleClient(client);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        } finally {
+                            semaphore.release();
+                        }
+                    });
+                } else {
+                    sendServerBusy(client);
+                }
+            }
+        } catch (IOException e) {
+            Log.e("SERVER", "Server error", e);
+        }
+    }
+
+    /*
+    private void handleClient(Socket client) {
+        try {
+            OutputStream o = client.getOutputStream();
+            BufferedWriter out = new BufferedWriter(new OutputStreamWriter(o));
+
+            HttpRequest request = SimpleHttpParser.parseRequest(client.getInputStream());
+            String file = request.getUri();
+            writeFile(out, file, o);
+
+            out.flush();
+        } catch (IOException e) {
+            Log.e("SERVER", "Error handling client", e);
+        } finally {
+            try {
+                client.close();
+            } catch (IOException e) {
+                Log.e("SERVER", "Error closing client socket", e);
+            }
+        }
+        Log.d("SERVER", "Socket Closed");
+    }
+    */
+
+    public void handleClient(Socket client) throws IOException {
+        Log.d("SERVER", "Socket Accepted");
+
+        OutputStream o = client.getOutputStream();
+        BufferedWriter out = new BufferedWriter(new OutputStreamWriter(o));
+
+        HttpRequest request = SimpleHttpParser.parseRequest(client.getInputStream());
+        String file = request.getUri();
+        writeFile(out, file, o);
+
+        out.flush();
+
+        // client.close(); // TODO reevaluate closing the socket
+        Log.d("SERVER", "Socket Closed");
+    }
+
+    private void sendServerBusy(Socket client) {
+        try (OutputStream out = client.getOutputStream()) {
+            out.write("HTTP/1.1 503 Service Unavailable\r\n\r\nServer too busy. Please try again later.".getBytes());
+        } catch (IOException e) {
+            Log.e("SERVER", "Error sending 503 Service Unavailable", e);
+        } finally {
+            try {
+                client.close();
+            } catch (IOException e) {
+                Log.e("SERVER", "Error closing client socket during busy response", e);
+            }
+        }
+    }
+
+    private static String WEB_DIR = "web";
+    private static String DEFAULT_PAGE = "index.html";
 
     private static String HTTP_NOT_FOUND_LABEL = "Not Found";
 
@@ -38,99 +148,12 @@ public class SocketServer extends Thread {
             418, "418", "I'm a teapot"
     );
 
-    private static String WEB_DIR = "web";
-    private static String DEFAULT_PAGE = "index.html";
-    private final File sdCardDir;
-
-    ServerSocket serverSocket;
-    public final int port = 12345;
-    boolean bRunning;
-
-    // TODO lombok, DI
-    public SocketServer(File sdCardDir) {
-        this.sdCardDir = sdCardDir;
-    }
-
-    public void close() {
-        try {
-            serverSocket.close();
-        } catch (IOException e) {
-            Log.d("SERVER", "Error, probably interrupted in accept(), see log");
-            e.printStackTrace();
-        }
-        bRunning = false;
-    }
-
-    public void run() {
-        try {
-            Log.d("SERVER", "Creating Socket");
-            serverSocket = new ServerSocket(port);
-            bRunning = true;
-
-            while (bRunning) {
-                Log.d("SERVER", "Socket Waiting for connection");
-                Socket s = serverSocket.accept();
-                Log.d("SERVER", "Socket Accepted");
-
-                OutputStream o = s.getOutputStream();
-                BufferedWriter out = new BufferedWriter(new OutputStreamWriter(o));
-
-                HttpRequest request = SimpleHttpParser.parseRequest(s.getInputStream());
-                String file = request.getUri();
-                writeFile(out, file, o);
-
-                out.flush();
-
-//                s.close(); // TODO reevaluate closing the socket
-                Log.d("SERVER", "Socket Closed");
-            }
-        } catch (IOException e) {
-            if (serverSocket != null && serverSocket.isClosed())
-                Log.d("SERVER", "Normal exit");
-            else {
-                Log.d("SERVER", "Error");
-                e.printStackTrace();
-            }
-        } finally {
-            serverSocket = null;
-            bRunning = false;
-        }
-    }
-
-    public static byte[] loadFileContents(String filePath) throws IOException {
-        File file = new File(filePath);
-        if (!file.exists()) {
-            throw new IOException("File does not exist: " + filePath);
-        }
-        long fileSize = file.length();
-        if (fileSize > Integer.MAX_VALUE) {
-            throw new IOException("File is too large to load into a byte array.");
-        }
-        byte[] buffer = new byte[(int) fileSize];
-        try (FileInputStream fis = new FileInputStream(file)) {
-            int bytesRead = 0;
-            int bytesToRead = buffer.length;
-            while (bytesRead < bytesToRead) {
-                int result = fis.read(buffer, bytesRead, bytesToRead - bytesRead);
-                if (result == -1) break; // EOF
-                bytesRead += result;
-            }
-
-            if (bytesRead < bytesToRead) {
-                throw new IOException("Unexpected end of file; was expecting " + bytesToRead
-                        + " bytes, but only received " + bytesRead);
-            }
-
-            return buffer;
-        }
-    }
-
     private void writeFile(BufferedWriter bufferedWriter, String page, OutputStream o) throws IOException {
         final String filePath;
         // simple URI router
         if (page != null && !page.isEmpty() && !page.equalsIgnoreCase("/")) {
             // is page a filename?
-             if (page.matches(".*\\..*")) { // ^[\w,\s-]+\.[A-Za-z]{2,}$
+            if (page.matches(".*\\..*")) { // ^[\w,\s-]+\.[A-Za-z]{2,}$
                 // if (page.matches("^[\\w,\\s-]+\\.[A-Za-z]{2,}$")) {
                 filePath = WEB_DIR + "/" + page;
             } else {
@@ -181,6 +204,7 @@ public class SocketServer extends Thread {
         bufferedWriter.flush(); // Ensure all data is written out.
     }
 
+
     public HttpResponse createResponse(BufferedReader bufferedReader) throws IOException {
         StringBuilder stringBuilder = new StringBuilder();
         String line;
@@ -196,4 +220,53 @@ public class SocketServer extends Thread {
         response.setBody(body);
         return response;
     }
+/*
+
+    // The writeFile method and other methods should be moved here if not included above
+
+    private void writeFile(BufferedWriter out, String requestedFile, OutputStream outputStream) throws IOException {
+        final File fileOnSdCard = new File(sdCardDir, requestedFile);
+
+        if (!fileOnSdCard.exists()) {
+            sendHttpResponse(outputStream, "HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\n\r\n<html><body><h1>404 Not Found</h1><p>The requested resource was not found on this server.</p></body></html>");
+            return;
+        }
+
+        try {
+            if (requestedFile.matches(".*\\.(png|jpg)")) {
+                // Serve image files as binary data
+                byte[] fileContent = loadFileContents(fileOnSdCard.getPath());
+                String contentType = requestedFile.endsWith(".png") ? "image/png" : "image/jpeg";
+                sendHttpResponse(outputStream, "HTTP/1.1 200 OK\r\nContent-Type: " + contentType + "\r\nContent-Length: " + fileContent.length + "\r\n\r\n", fileContent);
+            } else {
+                // Serve text or HTML files
+                String content = new String(loadFileContents(fileOnSdCard.getPath()), "UTF-8");
+                sendHttpResponse(outputStream, "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Length: " + content.length() + "\r\n\r\n" + content);
+            }
+        } catch (IOException e) {
+            Log.e("SERVER", "Error reading file", e);
+            sendHttpResponse(outputStream, "HTTP/1.1 500 Internal Server Error\r\nContent-Type: text/html\r\n\r\n<html><body><h1>500 Internal Server Error</h1><p>Error reading file from disk.</p></body></html>");
+        }
+    }
+*/
+
+    private byte[] loadFileContents(String filePath) throws IOException {
+        FileInputStream fis = new FileInputStream(filePath);
+        byte[] data = new byte[fis.available()];
+        fis.read(data);
+        fis.close();
+        return data;
+    }
+
+    private void sendHttpResponse(OutputStream outputStream, String headers, byte[] content) throws IOException {
+        outputStream.write(headers.getBytes());
+        outputStream.write(content);
+        outputStream.flush();
+    }
+
+    private void sendHttpResponse(OutputStream outputStream, String response) throws IOException {
+        outputStream.write(response.getBytes());
+        outputStream.flush();
+    }
+
 }

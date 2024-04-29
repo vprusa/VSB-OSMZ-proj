@@ -37,16 +37,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         s.start();
     }
 
-
     @Override
     public void onClick(View v) {
-
         if (v.getId() == R.id.button1) {
-
             int permissionCheck = ContextCompat.checkSelfPermission(
                     this, Manifest.permission.READ_EXTERNAL_STORAGE
             );
-
             if (permissionCheck != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(
                         this,
