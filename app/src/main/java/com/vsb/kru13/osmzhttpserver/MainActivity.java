@@ -33,7 +33,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         // for devel purposes lets start the web server at start of the app
         // TODO add integration tests ...
         File sdcard = Environment.getExternalStorageDirectory();
-        s = new SocketServer(sdcard);
+        s = new SocketServer(this.getApplicationContext(), sdcard);
         s.start();
     }
 
@@ -51,7 +51,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 );
             } else {
                 File sdcard = Environment.getExternalStorageDirectory();
-                s = new SocketServer(sdcard);
+                s = new SocketServer(this.getApplicationContext(), sdcard);
                 s.start();
             }
         }
@@ -74,7 +74,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             case READ_EXTERNAL_STORAGE:
                 if ((grantResults.length > 0) && (grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
                     File sdcard = Environment.getExternalStorageDirectory();
-                    s = new SocketServer(sdcard);
+                    s = new SocketServer(this.getApplicationContext(), sdcard);
                     s.start();
                 }
                 break;

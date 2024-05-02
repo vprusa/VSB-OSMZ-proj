@@ -1,10 +1,18 @@
 package com.vsb.kru13.osmzhttpserver;
 
+import android.content.Context;
+import android.os.Build;
 import android.util.Log;
 
+import androidx.annotation.RequiresApi;
+
+import com.vsb.kru13.osmzhttpserver.controllers.TelemetryCollector;
 import com.vsb.kru13.osmzhttpserver.http.HttpRequest;
 import com.vsb.kru13.osmzhttpserver.http.HttpResponse;
 import com.vsb.kru13.osmzhttpserver.http.SimpleHttpParser;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -28,52 +36,55 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 
+@RequiresApi(api = Build.VERSION_CODES.O) // TODO add workaround ..
 public class SocketServer extends Thread {
     private ServerSocket serverSocket;
     public final int port = 12345;
     private boolean bRunning;
     private final File sdCardDir;
-    private Semaphore semaphore;
-    private ExecutorService threadPool;
+    private final Semaphore semaphore;
+    private final ExecutorService threadPool;
 
-    private static String WEB_DIR = "web";
-    private static String DEFAULT_PAGE = "index.html";
+    private static final String WEB_DIR = "web";
+    private static final String DEFAULT_PAGE = "index.html";
 
-    private static String HTTP_NOT_FOUND_LABEL = "Not Found";
+    private static final String HTTP_NOT_FOUND_LABEL = "Not Found";
 
-    private static int MAX_THREADS = 2;
+    private static final int MAX_THREADS = 2;
 
-    private static String ACCESS_LOG_FILE_PATH = "access.log";
+    private static final String ACCESS_LOG_FILE_PATH = "access.log";
 
-    private static String ERRORS_LOG_FILE_PATH = "errors.log";
+    private static final String ERRORS_LOG_FILE_PATH = "errors.log";
 
-    private static DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     /**
      * https://www.rfc-editor.org/rfc/rfc7231#section-6.5
      */
-    private static HttpResponse HTTP_RESP_404 = new HttpResponse(
+    private static final HttpResponse HTTP_RESP_404 = new HttpResponse(
             404, HTTP_NOT_FOUND_LABEL, HTTP_NOT_FOUND_LABEL
     );
 
     /**
      * https://en.wikipedia.org/wiki/Hyper_Text_Coffee_Pot_Control_Protocol
      */
-    private static HttpResponse HTTP_RESP_418 = new HttpResponse(
+    private static final HttpResponse HTTP_RESP_418 = new HttpResponse(
             418, "418", "I'm a teapot"
     );
 
-    private static HttpResponse HTTP_RESP_503 = new HttpResponse(
+    private static final HttpResponse HTTP_RESP_503 = new HttpResponse(
             503, "Service Unavailable",
             "<html><body><h1>503 Service Unavailable</h1>" +
                     "<p>Server too busy. Please try again later.</p></body></html>",
             Collections.singletonMap("Content-Type", "text/html; charset=UTF-8")
     );
 
-    public SocketServer(File sdCardDir) {
-        this(sdCardDir, MAX_THREADS);
+    private final TelemetryCollector telemetryCollector;
+
+    public SocketServer(Context context, File sdCardDir) {
+        this(context, sdCardDir, MAX_THREADS);
     }
-    public SocketServer(File sdCardDir, int maxThreads) {
+    public SocketServer(Context context, File sdCardDir, int maxThreads) {
         this.sdCardDir = sdCardDir;
         this.semaphore = new Semaphore(maxThreads);
         this.threadPool = Executors.newFixedThreadPool(maxThreads);
@@ -94,6 +105,7 @@ public class SocketServer extends Thread {
                 Log.e("FILE", "Unable to create error log files on SD card", e);
             }
         }
+        telemetryCollector = new TelemetryCollector(context);
     }
 
     public void close() {
@@ -106,16 +118,12 @@ public class SocketServer extends Thread {
         }
     }
 
-    private void logServerError(Exception e) {
-        Log.e("SERVER", "Server error", e);
-    }
-
     private void appLog(String filePath, String tag, Socket s, String msg) {
         final File f = new File(sdCardDir, filePath);
         if (f.exists()) {
-            String address = s != null ? s.getInetAddress().getHostAddress() : "unknown";
-            String now = LocalDateTime.now().format(formatter);
-            String log = String.format("%s - %s - address: %s, msg: %s\n\r", now, tag, address, msg);
+            final String address = s != null ? s.getInetAddress().getHostAddress() : "unknown";
+            final String now = LocalDateTime.now().format(formatter);
+            final String log = String.format("%s - %s - address: %s, msg: %s\n\r", now, tag, address, msg);
             Log.e(tag, log);
             if (f.exists() && f.canWrite()) {
                 // TODO add semaphore?
@@ -142,14 +150,13 @@ public class SocketServer extends Thread {
             serverSocket = new ServerSocket(port);
             bRunning = true;
             while (bRunning) {
-                Socket client = serverSocket.accept();
+                final Socket client = serverSocket.accept();
                 if (semaphore.tryAcquire()) {
                     logAccess(client, "acquired");
                     threadPool.execute(() -> {
                         try {
                             handleClient(client);
-                        } catch (IOException e) {
-                            logServerError(e);
+                        } catch (IOException | JSONException e) {
                             logError(client, "server error");
                         } finally {
                             semaphore.release();
@@ -161,21 +168,36 @@ public class SocketServer extends Thread {
                 }
             }
         } catch (IOException e) {
-            logServerError(e);
             logError(null, "server error");
         }
     }
 
-    public void handleClient(Socket client) throws IOException {
+    public void handleClient(Socket client) throws IOException, JSONException {
         logAccess(client, "Socket Accepted");
         Log.d("SERVER", "Socket Accepted");
 
-        OutputStream o = client.getOutputStream();
-        BufferedWriter out = new BufferedWriter(new OutputStreamWriter(o));
+        final OutputStream o = client.getOutputStream();
+        final BufferedWriter out = new BufferedWriter(new OutputStreamWriter(o));
 
-        HttpRequest request = SimpleHttpParser.parseRequest(client.getInputStream());
-        String file = request.getUri();
-        writeFile(out, file, o);
+        final HttpRequest request = SimpleHttpParser.parseRequest(client.getInputStream());
+        final String uri = request.getUri();
+
+        if (uri.equals("/streams/telemetry")) {
+            if (telemetryCollector != null) {
+                final JSONObject telemetryData = telemetryCollector.getTelemetryData();
+                final HttpResponse response = new HttpResponse(
+                        200,
+                        "OK",
+                        telemetryData.toString(),
+                        Collections.singletonMap("Content-Type", "application/json")
+                );
+                out.write(response.toString());
+                out.flush();
+            }
+        } else {
+            writeFile(out, uri, o); // Existing file serving logic
+        }
+
 
         out.flush();
 
