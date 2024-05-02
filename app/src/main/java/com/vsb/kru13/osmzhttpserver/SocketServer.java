@@ -108,9 +108,9 @@ public class SocketServer extends Thread {
 
     private void appLog(String filePath, String tag, Socket s, String msg) {
         final File f = new File(sdCardDir, filePath);
-        if (!f.exists()) {
+        if (f.exists()) {
             String address = s != null ? s.getInetAddress().getHostAddress() : "unknown";
-            String log = String.format("{} - address: {}, msg: {}\n\r", tag, address, msg);
+            String log = String.format("%s - address: %s, msg: %s\n\r", tag, address, msg);
             Log.e(tag, log);
             if (f.exists() && f.canWrite()) {
                 // TODO add semaphore?

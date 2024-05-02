@@ -21,3 +21,10 @@ https://developer.android.com/training/data-storage/manage-all-files
 ```
  ~/Android/Sdk/platform-tools/adb shell appops set --uid com.vsb.kru13.osmzhttpserver  MANAGE_EXTERNAL_STORAGE allow
 ```
+
+### #3
+
+```
+ ~/Android/Sdk/platform-tools/adb  pull "/sdcard"
+
+```
