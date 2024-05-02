@@ -1,0 +1,153 @@
+--------- beginning of main
+--------- beginning of kernel
+--------- beginning of system
+2024-04-30 17:59:10.385   358-358   Zygote                  pid-358                              I  Accepting command socket connections
+2024-04-30 17:59:26.769   950-1208  ObexServerSockets0      pid-950                              D  startAccept()
+2024-04-30 17:59:26.771   950-1213  ObexServerSockets0      pid-950                              D  Accepting socket connection...
+2024-04-30 17:59:26.771   950-1213  BluetoothSocket         pid-950                              D  accept(), timeout (ms):-1
+2024-04-30 17:59:26.781   950-1214  ObexServerSockets0      pid-950                              D  Accepting socket connection...
+2024-04-30 17:59:26.781   950-1214  BluetoothSocket         pid-950                              D  accept(), timeout (ms):-1
+2024-04-30 17:59:26.919   950-1217  ObexServerSockets1      pid-950                              D  startAccept()
+2024-04-30 17:59:26.921   950-1225  ObexServerSockets1      pid-950                              D  Accepting socket connection...
+2024-04-30 17:59:26.921   950-1225  BluetoothSocket         pid-950                              D  accept(), timeout (ms):-1
+2024-04-30 17:59:26.930   950-1224  ObexServerSockets1      pid-950                              D  Accepting socket connection...
+2024-04-30 17:59:26.930   950-1224  BluetoothSocket         pid-950                              D  accept(), timeout (ms):-1
+2024-04-30 17:59:27.165   950-950   ObexServerSockets2      pid-950                              D  startAccept()
+2024-04-30 17:59:27.166   950-1241  ObexServerSockets2      pid-950                              D  Accepting socket connection...
+2024-04-30 17:59:27.166   950-1241  BluetoothSocket         pid-950                              D  accept(), timeout (ms):-1
+2024-04-30 17:59:27.166   950-1242  ObexServerSockets2      pid-950                              D  Accepting socket connection...
+2024-04-30 17:59:27.166   950-1242  BluetoothSocket         pid-950                              D  accept(), timeout (ms):-1
+2024-04-30 17:59:29.826   914-947   SystemServiceRegistry   com.android.networkstack.process     E  No service published for: ethernet
+                                                                                                    android.os.ServiceManager$ServiceNotFoundException: No service published for: ethernet
+                                                                                                    	at android.os.ServiceManager.getServiceOrThrow(ServiceManager.java:166)
+                                                                                                    	at android.app.SystemServiceRegistry$139.createService(SystemServiceRegistry.java:1872)
+                                                                                                    	at android.app.SystemServiceRegistry$CachedServiceFetcher.getService(SystemServiceRegistry.java:1971)
+                                                                                                    	at android.app.SystemServiceRegistry.getSystemService(SystemServiceRegistry.java:1645)
+                                                                                                    	at android.app.ContextImpl.getSystemService(ContextImpl.java:2212)
+                                                                                                    	at android.content.ContextWrapper.getSystemService(ContextWrapper.java:934)
+                                                                                                    	at com.android.networkstack.tethering.Tethering.isEthernetSupported(Tethering.java:1582)
+                                                                                                    	at com.android.networkstack.tethering.Tethering.makeSupportedDownstreams(Tethering.java:2550)
+                                                                                                    	at com.android.networkstack.tethering.Tethering.updateSupportedDownstreams(Tethering.java:2524)
+                                                                                                    	at com.android.networkstack.tethering.Tethering.updateConfiguration(Tethering.java:546)
+                                                                                                    	at com.android.networkstack.tethering.Tethering.lambda$new$3(Tethering.java:345)
+                                                                                                    	at com.android.networkstack.tethering.Tethering.$r8$lambda$bts3FsOwVdwDhrwMjvAr9kV3Jgs(Tethering.java:0)
+                                                                                                    	at com.android.networkstack.tethering.Tethering$$ExternalSyntheticLambda7.accept(R8$$SyntheticClass:0)
+                                                                                                    	at com.android.networkstack.tethering.util.VersionedBroadcastListener$Receiver.onReceive(VersionedBroadcastListener.java:103)
+                                                                                                    	at android.app.LoadedApk$ReceiverDispatcher$Args.lambda$getRunnable$0(LoadedApk.java:1802)
+                                                                                                    	at android.app.LoadedApk$ReceiverDispatcher$Args.$r8$lambda$gDuJqgxY6Zb-ifyeubKeivTLAwk(Unknown Source:0)
+                                                                                                    	at android.app.LoadedApk$ReceiverDispatcher$Args$$ExternalSyntheticLambda0.run(Unknown Source:2)
+                                                                                                    	at android.os.Handler.handleCallback(Handler.java:958)
+                                                                                                    	at android.os.Handler.dispatchMessage(Handler.java:99)
+                                                                                                    	at android.os.Looper.loopOnce(Looper.java:205)
+                                                                                                    	at android.os.Looper.loop(Looper.java:294)
+                                                                                                    	at android.os.HandlerThread.run(HandlerThread.java:67)
+2024-04-30 17:59:36.745   357-405   netd                    netd                                 I  setProcSysNet(6, 1, wlan0, accept_ra, 2) <0.24ms>
+2024-04-30 17:59:47.920  2415-2862  ProviderInstaller       com.google.android.apps.messaging    W  Failed to load providerinstaller module: No acceptable module com.google.android.gms.providerinstaller.dynamite found. Local version is 0 and remote version is 0.
+2024-04-30 17:59:48.376   914-947   SystemServiceRegistry   com.android.networkstack.process     E  No service published for: ethernet
+                                                                                                    android.os.ServiceManager$ServiceNotFoundException: No service published for: ethernet
+                                                                                                    	at android.os.ServiceManager.getServiceOrThrow(ServiceManager.java:166)
+                                                                                                    	at android.app.SystemServiceRegistry$139.createService(SystemServiceRegistry.java:1872)
+                                                                                                    	at android.app.SystemServiceRegistry$CachedServiceFetcher.getService(SystemServiceRegistry.java:1971)
+                                                                                                    	at android.app.SystemServiceRegistry.getSystemService(SystemServiceRegistry.java:1645)
+                                                                                                    	at android.app.ContextImpl.getSystemService(ContextImpl.java:2212)
+                                                                                                    	at android.content.ContextWrapper.getSystemService(ContextWrapper.java:934)
+                                                                                                    	at com.android.networkstack.tethering.Tethering.isEthernetSupported(Tethering.java:1582)
+                                                                                                    	at com.android.networkstack.tethering.Tethering.makeSupportedDownstreams(Tethering.java:2550)
+                                                                                                    	at com.android.networkstack.tethering.Tethering.updateSupportedDownstreams(Tethering.java:2524)
+                                                                                                    	at com.android.networkstack.tethering.Tethering.updateConfiguration(Tethering.java:546)
+                                                                                                    	at com.android.networkstack.tethering.Tethering.lambda$new$3(Tethering.java:345)
+                                                                                                    	at com.android.networkstack.tethering.Tethering.$r8$lambda$bts3FsOwVdwDhrwMjvAr9kV3Jgs(Tethering.java:0)
+                                                                                                    	at com.android.networkstack.tethering.Tethering$$ExternalSyntheticLambda7.accept(R8$$SyntheticClass:0)
+                                                                                                    	at com.android.networkstack.tethering.util.VersionedBroadcastListener$Receiver.onReceive(VersionedBroadcastListener.java:103)
+                                                                                                    	at android.app.LoadedApk$ReceiverDispatcher$Args.lambda$getRunnable$0(LoadedApk.java:1802)
+                                                                                                    	at android.app.LoadedApk$ReceiverDispatcher$Args.$r8$lambda$gDuJqgxY6Zb-ifyeubKeivTLAwk(Unknown Source:0)
+                                                                                                    	at android.app.LoadedApk$ReceiverDispatcher$Args$$ExternalSyntheticLambda0.run(Unknown Source:2)
+                                                                                                    	at android.os.Handler.handleCallback(Handler.java:958)
+                                                                                                    	at android.os.Handler.dispatchMessage(Handler.java:99)
+                                                                                                    	at android.os.Looper.loopOnce(Looper.java:205)
+                                                                                                    	at android.os.Looper.loop(Looper.java:294)
+                                                                                                    	at android.os.HandlerThread.run(HandlerThread.java:67)
+2024-04-30 17:59:51.517  1754-3394  ProviderInstaller       com...le.android.apps.youtube.music  W  Failed to load providerinstaller module: No acceptable module com.google.android.gms.providerinstaller.dynamite found. Local version is 0 and remote version is 0.
+2024-04-30 17:59:51.745  2612-2715  ProviderInstaller       com.google.android.dialer            W  Failed to load providerinstaller module: No acceptable module com.google.android.gms.providerinstaller.dynamite found. Local version is 0 and remote version is 0.
+2024-04-30 17:59:52.138  1776-2421  CorpusConfigHelper      com....android.googlequicksearchbox  W  Invalid input from icing corpus JSON flag.
+                                                                                                    android.util.MalformedJsonException: Use JsonReader.setLenient(true) to accept malformed JSON at line 123 column 2
+                                                                                                    	at android.util.JsonReader.syntaxError(JsonReader.java:1162)
+                                                                                                    	at android.util.JsonReader.checkLenient(JsonReader.java:840)
+                                                                                                    	at android.util.JsonReader.nextInArray(JsonReader.java:615)
+                                                                                                    	at android.util.JsonReader.peek(JsonReader.java:345)
+                                                                                                    	at android.util.JsonReader.hasNext(JsonReader.java:321)
+                                                                                                    	at com.google.android.apps.gsa.searchbox.c.b.b.k.c(PG:7)
+                                                                                                    	at com.google.android.apps.gsa.searchbox.c.b.b.k.<init>(PG:5)
+                                                                                                    	at com.google.android.apps.gsa.staticplugins.searchboxroot.features.n.a.c.<init>(PG:16)
+                                                                                                    	at com.google.android.apps.gsa.staticplugins.searchboxroot.b.a(PG:14)
+                                                                                                    	at com.google.android.apps.gsa.staticplugins.searchboxroot.x.<init>(PG:7)
+                                                                                                    	at com.google.android.apps.gsa.binaries.velvet.app.akd.b(PG:15)
+                                                                                                    	at dagger.a.e.b(PG:1)
+                                                                                                    	at com.google.android.apps.gsa.staticplugins.searchboxroot.a.a.a(PG:3)
+                                                                                                    	at com.google.android.apps.gsa.binaries.velvet.app.ok.f(Unknown Source:2541)
+                                                                                                    	at com.google.android.apps.gsa.binaries.velvet.app.ok.b(PG:1)
+                                                                                                    	at com.google.android.apps.gsa.search.core.service.g.a.c.a(PG:2)
+                                                                                                    	at com.google.android.libraries.gsa.k.a.f.a(PG:2)
+                                                                                                    	at com.google.common.util.concurrent.dx.a(PG:1)
+                                                                                                    	at com.google.common.util.concurrent.cv.run(PG:4)
+                                                                                                    	at com.google.common.util.concurrent.dz.run(PG:1)
+                                                                                                    	at com.google.android.libraries.i.ae.run(PG:1)
+                                                                                                    	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+                                                                                                    	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:644)
+                                                                                                    	at com.google.android.libraries.i.k.run(PG:2)
+                                                                                                    	at com.google.android.libraries.i.p.run(PG:4)
+                                                                                                    	at java.lang.Thread.run(Thread.java:1012)
+2024-04-30 17:59:54.842  2790-3645  ProviderInstaller       com.google.android.contacts          W  Failed to load providerinstaller module: No acceptable module com.google.android.gms.providerinstaller.dynamite found. Local version is 0 and remote version is 0.
+2024-04-30 17:59:55.941  2415-3805  BugleRcsEngine          com.google.android.apps.messaging    I  [112] brjv.b: Config state is not ACCEPTED, provisioning still in progress
+2024-04-30 17:59:55.990  2415-3805  BugleRcsEngine          com.google.android.apps.messaging    I  [112] brjv.b: Config state is not ACCEPTED, provisioning still in progress
+2024-04-30 18:00:02.046  3061-3237  ProviderInstaller       com.google.android.gm                W  Failed to load providerinstaller module: No acceptable module com.google.android.gms.providerinstaller.dynamite found. Local version is 0 and remote version is 0.
+2024-04-30 18:00:10.766  2415-4322  BugleRcsEngine          com.google.android.apps.messaging    I  [123] brjv.b: Config state is not ACCEPTED, provisioning still in progress
+2024-04-30 18:00:10.876  2415-4322  BugleRcsEngine          com.google.android.apps.messaging    I  [123] brjv.b: Config state is not ACCEPTED, provisioning still in progress
+2024-04-30 18:00:15.045  2415-4451  BugleRcsEngine          com.google.android.apps.messaging    I  [124] brjv.b: Config state is not ACCEPTED, provisioning still in progress
+2024-04-30 18:00:15.104  2415-4451  BugleRcsEngine          com.google.android.apps.messaging    I  [124] brjv.b: Config state is not ACCEPTED, provisioning still in progress
+2024-04-30 18:00:49.573  2415-2857  ProviderInstaller       com.google.android.apps.messaging    W  Failed to load providerinstaller module: No acceptable module com.google.android.gms.providerinstaller.dynamite found. Local version is 0 and remote version is 0.
+2024-04-30 18:01:05.900  2273-4522  SERVER                  pid-2273                             D  Socket Accepted
+2024-04-30 18:01:08.137  2273-4523  SERVER                  pid-2273                             D  Socket Accepted
+2024-04-30 18:01:13.009  2273-4524  SERVER                  pid-2273                             D  Socket Accepted
+2024-04-30 18:01:13.739  2273-4525  SERVER                  pid-2273                             D  Socket Accepted
+2024-04-30 18:01:14.640  2273-4526  SERVER                  pid-2273                             D  Socket Accepted
+2024-04-30 18:01:42.001  2273-4522  SERVER                  pid-2273                             D  Socket Accepted
+2024-04-30 18:07:08.771  5091-5122  SERVER                  pid-5091                             D  Socket Accepted
+2024-04-30 18:07:12.389  5091-5123  SERVER                  pid-5091                             D  Socket Accepted
+2024-04-30 18:07:13.555  5091-5124  SERVER                  pid-5091                             D  Socket Accepted
+2024-04-30 18:09:34.208  5179-5211  ACCESS_LOG              pid-5179                             E  ACCESS_LOG - address: 127.0.0.1, msg: Socket Accepted
+2024-04-30 18:09:34.209  5179-5211  SERVER                  pid-5179                             D  Socket Accepted
+2024-04-30 18:09:37.568  5179-5212  ACCESS_LOG              pid-5179                             E  ACCESS_LOG - address: 127.0.0.1, msg: Socket Accepted
+2024-04-30 18:09:37.569  5179-5212  SERVER                  pid-5179                             D  Socket Accepted
+2024-04-30 18:09:39.687  5179-5214  ACCESS_LOG              pid-5179                             E  ACCESS_LOG - address: 127.0.0.1, msg: Socket Accepted
+2024-04-30 18:09:39.689  5179-5214  SERVER                  pid-5179                             D  Socket Accepted
+2024-04-30 18:09:40.534  5179-5215  ACCESS_LOG              pid-5179                             E  ACCESS_LOG - address: 127.0.0.1, msg: Socket Accepted
+2024-04-30 18:09:40.535  5179-5215  SERVER                  pid-5179                             D  Socket Accepted
+2024-04-30 18:09:40.721  5179-5216  ACCESS_LOG              pid-5179                             E  ACCESS_LOG - address: 127.0.0.1, msg: Socket Accepted
+2024-04-30 18:09:40.723  5179-5216  SERVER                  pid-5179                             D  Socket Accepted
+2024-04-30 18:09:41.477  5179-5211  ACCESS_LOG              pid-5179                             E  ACCESS_LOG - address: 127.0.0.1, msg: Socket Accepted
+2024-04-30 18:09:41.480  5179-5211  SERVER                  pid-5179                             D  Socket Accepted
+2024-04-30 18:09:46.242  5179-5212  ACCESS_LOG              pid-5179                             E  ACCESS_LOG - address: 127.0.0.1, msg: Socket Accepted
+2024-04-30 18:09:46.245  5179-5212  SERVER                  pid-5179                             D  Socket Accepted
+2024-05-02 11:41:51.905  5303-5548  ObexServerSockets0      com.google.android.bluetooth         D  startAccept()
+2024-05-02 11:41:51.932  5303-5554  ObexServerSockets0      com.google.android.bluetooth         D  Accepting socket connection...
+2024-05-02 11:41:51.932  5303-5554  BluetoothSocket         com.google.android.bluetooth         D  accept(), timeout (ms):-1
+2024-05-02 11:41:51.955  5303-5551  ObexServerSockets0      com.google.android.bluetooth         D  Accepting socket connection...
+2024-05-02 11:41:51.956  5303-5551  BluetoothSocket         com.google.android.bluetooth         D  accept(), timeout (ms):-1
+2024-05-02 11:41:52.001  5303-5553  ObexServerSockets1      com.google.android.bluetooth         D  startAccept()
+2024-05-02 11:41:52.016  5303-5559  ObexServerSockets1      com.google.android.bluetooth         D  Accepting socket connection...
+2024-05-02 11:41:52.016  5303-5559  BluetoothSocket         com.google.android.bluetooth         D  accept(), timeout (ms):-1
+2024-05-02 11:41:52.078  5303-5557  ObexServerSockets1      com.google.android.bluetooth         D  Accepting socket connection...
+2024-05-02 11:41:52.079  5303-5557  BluetoothSocket         com.google.android.bluetooth         D  accept(), timeout (ms):-1
+2024-05-02 11:41:52.422  5303-5303  ObexServerSockets2      com.google.android.bluetooth         D  startAccept()
+2024-05-02 11:41:52.426  5303-5582  ObexServerSockets2      com.google.android.bluetooth         D  Accepting socket connection...
+2024-05-02 11:41:52.426  5303-5582  BluetoothSocket         com.google.android.bluetooth         D  accept(), timeout (ms):-1
+2024-05-02 11:41:52.476  5303-5583  ObexServerSockets2      com.google.android.bluetooth         D  Accepting socket connection...
+2024-05-02 11:41:52.476  5303-5583  BluetoothSocket         com.google.android.bluetooth         D  accept(), timeout (ms):-1
+2024-05-02 11:48:34.240  6024-6066  ACCESS_LOG              com.vsb.kru13.osmzhttpserver         E  2024-05-02 09:48:34 - ACCESS_LOG - address: 127.0.0.1, msg: Socket Accepted
+2024-05-02 11:48:35.127  6024-6066  SERVER                  com.vsb.kru13.osmzhttpserver         D  Socket Accepted
+2024-05-02 11:49:13.976  6024-6067  ACCESS_LOG              com.vsb.kru13.osmzhttpserver         E  2024-05-02 09:49:13 - ACCESS_LOG - address: 127.0.0.1, msg: Socket Accepted
+2024-05-02 11:49:32.219  6024-6067  SERVER                  com.vsb.kru13.osmzhttpserver         D  Socket Accepted
+2024-05-02 11:49:32.759  6024-6066  ACCESS_LOG              com.vsb.kru13.osmzhttpserver         E  2024-05-02 09:49:28 - ACCESS_LOG - address: 127.0.0.1, msg: Socket Accepted
+2024-05-02 11:49:37.466  6024-6066  SERVER                  com.vsb.kru13.osmzhttpserver         D  Socket Accepted
+

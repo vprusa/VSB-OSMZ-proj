@@ -20,6 +20,8 @@ import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URLDecoder;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -39,11 +41,13 @@ public class SocketServer extends Thread {
 
     private static String HTTP_NOT_FOUND_LABEL = "Not Found";
 
-    private static int MAX_THREADS = 5;
+    private static int MAX_THREADS = 2;
 
     private static String ACCESS_LOG_FILE_PATH = "access.log";
 
     private static String ERRORS_LOG_FILE_PATH = "errors.log";
+
+    private static DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     /**
      * https://www.rfc-editor.org/rfc/rfc7231#section-6.5
@@ -110,7 +114,8 @@ public class SocketServer extends Thread {
         final File f = new File(sdCardDir, filePath);
         if (f.exists()) {
             String address = s != null ? s.getInetAddress().getHostAddress() : "unknown";
-            String log = String.format("%s - address: %s, msg: %s\n\r", tag, address, msg);
+            String now = LocalDateTime.now().format(formatter);
+            String log = String.format("%s - %s - address: %s, msg: %s\n\r", now, tag, address, msg);
             Log.e(tag, log);
             if (f.exists() && f.canWrite()) {
                 // TODO add semaphore?
