@@ -1,10 +1,8 @@
 package com.vsb.kru13.osmzhttpserver;
 
 import android.content.Context;
-import android.os.Build;
 import android.util.Log;
 
-import androidx.annotation.RequiresApi;
 
 import com.vsb.kru13.osmzhttpserver.controllers.TelemetryCollector;
 import com.vsb.kru13.osmzhttpserver.http.HttpRequest;
@@ -32,7 +30,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 
-@RequiresApi(api = Build.VERSION_CODES.O) // TODO add workaround ..
 public class SocketServer extends Thread {
     private final AppLogger logger;
     private ServerSocket serverSocket;

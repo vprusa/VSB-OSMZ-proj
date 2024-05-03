@@ -3,19 +3,18 @@ package com.vsb.kru13.osmzhttpserver;
 import android.os.Build;
 import android.util.Log;
 
-import androidx.annotation.RequiresApi;
-
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.Socket;
+import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.util.Date;
+import java.util.Locale;
 
-@RequiresApi(api = Build.VERSION_CODES.O)
 public class AppLogger {
 
-    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
 
     public static final String ACCESS_LOG_FILE_PATH = "access.log";
 
@@ -51,7 +50,8 @@ public class AppLogger {
         final File f = new File(sdCardDir, filePath);
         if (f.exists()) {
             final String address = s != null ? s.getInetAddress().getHostAddress() : "unknown";
-            final String now = LocalDateTime.now().format(formatter);
+            final Date nowTime = new Date();
+            final String now = sdf.format(nowTime);
             final String log = String.format("%s - %s - address: %s, msg: %s\n\r", now, tag, address, msg);
             Log.i(tag, log);
             if (f.exists() && f.canWrite()) {

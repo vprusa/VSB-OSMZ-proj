@@ -11,12 +11,9 @@ import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
-import android.util.Log;
 
-import androidx.annotation.RequiresApi;
 import androidx.core.app.ActivityCompat;
 
 import com.vsb.kru13.osmzhttpserver.AppLogger;
@@ -44,7 +41,6 @@ public class TelemetryCollector implements SensorEventListener, LocationListener
     private final Context context;
 
     // TODO analyse why the compiler complains regardless of `hasGPSPermissions`
-    @RequiresApi(api = Build.VERSION_CODES.O)
     @SuppressLint("MissingPermission")
     public TelemetryCollector(Context context, AppLogger logger) {
         this.context = context;
@@ -92,7 +88,6 @@ public class TelemetryCollector implements SensorEventListener, LocationListener
     }
 
     // Add this method to manage starting location updates cleanly
-    @RequiresApi(api = Build.VERSION_CODES.O)
     @SuppressLint("MissingPermission") // Handle permission check before calling this method
     public void startLocationUpdates() {
         if (hasGPSPermissions(context)) { // Ensure context is stored or passed
@@ -108,7 +103,6 @@ public class TelemetryCollector implements SensorEventListener, LocationListener
      *
      * @param event
      */
-    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public void onSensorChanged(SensorEvent event) {
         // Process sensor data and store it in telemetryData
@@ -129,7 +123,6 @@ public class TelemetryCollector implements SensorEventListener, LocationListener
      *
      * @param location
      */
-    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public void onLocationChanged(Location location) {
         // Process GPS data and store it in telemetryData
