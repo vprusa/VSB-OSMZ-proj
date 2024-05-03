@@ -11,11 +11,15 @@ import android.hardware.SensorManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Looper;
 import android.util.Log;
 
+import androidx.annotation.RequiresApi;
 import androidx.core.app.ActivityCompat;
+
+import com.vsb.kru13.osmzhttpserver.AppLogger;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -32,10 +36,19 @@ public class TelemetryCollector implements SensorEventListener, LocationListener
     private final SensorManager sensorManager;
     private final LocationManager locationManager;
     private final JSONObject telemetryData = new JSONObject();
+    private final AppLogger logger;
+    private static final long MIN_TIME_BW_UPDATES = 1000; // Every second
+    private static final float MIN_DISTANCE_CHANGE_FOR_UPDATES = 0.1f; // 0.1 meters
+
+    private final static String ERR_TAG = "GPS";
+    private final Context context;
 
     // TODO analyse why the compiler complains regardless of `hasGPSPermissions`
+    @RequiresApi(api = Build.VERSION_CODES.O)
     @SuppressLint("MissingPermission")
-    public TelemetryCollector(Context context) {
+    public TelemetryCollector(Context context, AppLogger logger) {
+        this.context = context;
+        this.logger = logger;
         sensorManager = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
         locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
         // Register sensor listeners and location updates
@@ -51,11 +64,15 @@ public class TelemetryCollector implements SensorEventListener, LocationListener
             //                                          int[] grantResults)
             // to handle the case where the user grants the permission. See the documentation
             // for ActivityCompat#requestPermissions for more details.
-            Log.e("PERMISSIONS_GPS", "Missing ACCESS_FINE_LOCATION permissions.");
+            logger.logError(ERR_TAG, "Missing ACCESS_FINE_LOCATION permissions.");
             return;
         }
+//        logger.logAccess("GPS", "Missing ACCESS_FINE_LOCATION permissions.");
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
                 5000, 5, this, Looper.getMainLooper());
+
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, MIN_TIME_BW_UPDATES, MIN_DISTANCE_CHANGE_FOR_UPDATES, this, Looper.getMainLooper());
+        locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, MIN_TIME_BW_UPDATES, MIN_DISTANCE_CHANGE_FOR_UPDATES, this, Looper.getMainLooper());
     }
 
     /**
@@ -74,11 +91,24 @@ public class TelemetryCollector implements SensorEventListener, LocationListener
         ) == PackageManager.PERMISSION_GRANTED;
     }
 
+    // Add this method to manage starting location updates cleanly
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    @SuppressLint("MissingPermission") // Handle permission check before calling this method
+    public void startLocationUpdates() {
+        if (hasGPSPermissions(context)) { // Ensure context is stored or passed
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 5, this, Looper.getMainLooper());
+            logger.logAccess("GPS", "Started location updates.");
+        } else {
+            logger.logError(ERR_TAG, "Attempt to start location updates without sufficient permissions.");
+        }
+    }
+
     /**
      * Updates the data.
      *
      * @param event
      */
+    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public void onSensorChanged(SensorEvent event) {
         // Process sensor data and store it in telemetryData
@@ -88,16 +118,18 @@ public class TelemetryCollector implements SensorEventListener, LocationListener
                 telemetryData.put("accelerometer_y", event.values[1]);
                 telemetryData.put("accelerometer_z", event.values[2]);
             } catch (Exception e) {
-                e.printStackTrace();
+//                e.printStackTrace();
+                logger.logError(ERR_TAG, e.getMessage());
             }
         }
     }
 
     /**
      * Updates the data.
-     * 
+     *
      * @param location
      */
+    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public void onLocationChanged(Location location) {
         // Process GPS data and store it in telemetryData
@@ -106,7 +138,8 @@ public class TelemetryCollector implements SensorEventListener, LocationListener
                 telemetryData.put("latitude", location.getLatitude());
                 telemetryData.put("longitude", location.getLongitude());
             } catch (Exception e) {
-                e.printStackTrace();
+//                e.printStackTrace();
+                logger.logError(ERR_TAG, e.getMessage());
             }
         }
     }

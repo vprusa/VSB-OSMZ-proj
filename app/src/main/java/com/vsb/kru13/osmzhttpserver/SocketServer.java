@@ -19,7 +19,6 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -28,16 +27,14 @@ import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URLDecoder;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Collections;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 
 @RequiresApi(api = Build.VERSION_CODES.O) // TODO add workaround ..
 public class SocketServer extends Thread {
+    private final AppLogger logger;
     private ServerSocket serverSocket;
     public final int port = 12345;
     private boolean bRunning;
@@ -52,11 +49,7 @@ public class SocketServer extends Thread {
 
     private static final int MAX_THREADS = 2;
 
-    private static final String ACCESS_LOG_FILE_PATH = "access.log";
-
-    private static final String ERRORS_LOG_FILE_PATH = "errors.log";
-
-    private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final String TAG_ERR = "SOCKET";
 
     /**
      * https://www.rfc-editor.org/rfc/rfc7231#section-6.5
@@ -81,31 +74,22 @@ public class SocketServer extends Thread {
 
     private final TelemetryCollector telemetryCollector;
 
-    public SocketServer(Context context, File sdCardDir) {
-        this(context, sdCardDir, MAX_THREADS);
+    public SocketServer(Context context, File sdCardDir, TelemetryCollector telemetryCollector) {
+        this(context, sdCardDir, MAX_THREADS, telemetryCollector);
     }
-    public SocketServer(Context context, File sdCardDir, int maxThreads) {
+    public SocketServer(Context context,
+                        File sdCardDir,
+                        int maxThreads,
+                        TelemetryCollector telemetryCollector
+
+    ) {
+        this.telemetryCollector = telemetryCollector;
         this.sdCardDir = sdCardDir;
         this.semaphore = new Semaphore(maxThreads);
         this.threadPool = Executors.newFixedThreadPool(maxThreads);
 
-        final File accessFile = new File(sdCardDir, ACCESS_LOG_FILE_PATH);
-        final File errorsFile = new File(sdCardDir, ERRORS_LOG_FILE_PATH);
-        if (!accessFile.exists()) {
-            try {
-                accessFile.createNewFile();
-            } catch (IOException e) {
-                Log.e("FILE", "Unable to create access log files on SD card", e);
-            }
-        }
-        if (!errorsFile.exists()) {
-            try {
-                errorsFile.createNewFile();
-            } catch (IOException e) {
-                Log.e("FILE", "Unable to create error log files on SD card", e);
-            }
-        }
-        telemetryCollector = new TelemetryCollector(context);
+        logger = new AppLogger(sdCardDir);
+//        telemetryCollector = new TelemetryCollector(context, logger);
     }
 
     public void close() {
@@ -118,33 +102,6 @@ public class SocketServer extends Thread {
         }
     }
 
-    private void appLog(String filePath, String tag, Socket s, String msg) {
-        final File f = new File(sdCardDir, filePath);
-        if (f.exists()) {
-            final String address = s != null ? s.getInetAddress().getHostAddress() : "unknown";
-            final String now = LocalDateTime.now().format(formatter);
-            final String log = String.format("%s - %s - address: %s, msg: %s\n\r", now, tag, address, msg);
-            Log.e(tag, log);
-            if (f.exists() && f.canWrite()) {
-                // TODO add semaphore?
-                try (FileWriter writer = new FileWriter(f)) {
-                    writer.write(log);
-                    writer.flush();
-                } catch (IOException e) {
-                    Log.e("FILE_WRITE", "Writing access log error", e);
-                }
-            }
-        }
-    }
-
-    private void logAccess(Socket s, String msg) {
-        appLog(ACCESS_LOG_FILE_PATH, "ACCESS_LOG", s, msg);
-    }
-
-    private void logError(Socket s, String msg) {
-        appLog(ERRORS_LOG_FILE_PATH, "ERROR_LOG", s, msg);
-    }
-
     public void run() {
         try {
             serverSocket = new ServerSocket(port);
@@ -152,15 +109,15 @@ public class SocketServer extends Thread {
             while (bRunning) {
                 final Socket client = serverSocket.accept();
                 if (semaphore.tryAcquire()) {
-                    logAccess(client, "acquired");
+                    logger.logAccess(client, "acquired");
                     threadPool.execute(() -> {
                         try {
                             handleClient(client);
                         } catch (IOException | JSONException e) {
-                            logError(client, "server error");
+                            logger.logError(client, "server error");
                         } finally {
                             semaphore.release();
-                            logAccess(client, "released");
+                            logger.logAccess(client, "released");
                         }
                     });
                 } else {
@@ -168,12 +125,12 @@ public class SocketServer extends Thread {
                 }
             }
         } catch (IOException e) {
-            logError(null, "server error");
+            logger.logError(TAG_ERR, "server error");
         }
     }
 
     public void handleClient(Socket client) throws IOException, JSONException {
-        logAccess(client, "Socket Accepted");
+        logger.logAccess(client, "Socket Accepted");
         Log.d("SERVER", "Socket Accepted");
 
         final OutputStream o = client.getOutputStream();
@@ -203,7 +160,7 @@ public class SocketServer extends Thread {
 
         // client.close(); // TODO reevaluate closing the socket
         Log.d("SERVER", "Socket Closed");
-        logAccess(client, "Socket Closed");
+        logger.logAccess(client, "Socket Closed");
     }
 
     private void sendServerBusy(Socket client) {
