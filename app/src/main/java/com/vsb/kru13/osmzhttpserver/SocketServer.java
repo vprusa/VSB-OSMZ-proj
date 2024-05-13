@@ -156,8 +156,6 @@ public class SocketServer extends Thread {
         } else {
             writeFile(out, uri, o); // Existing file serving logic
         }
-
-
         out.flush();
 
         // client.close(); // TODO reevaluate closing the socket
@@ -183,11 +181,17 @@ public class SocketServer extends Thread {
     private void writeFile(BufferedWriter bufferedWriter, String page, OutputStream o) throws IOException {
         final String filePath;
         // simple URI router
+        boolean isCmd = false;
         if (page != null && !page.isEmpty() && !page.equalsIgnoreCase("/")) {
             // is page a filename?
             if (page.startsWith("/")) {
                 page = page.replaceFirst("/", "");
             }
+
+            if (page.startsWith("cmd/")) {
+                isCmd = true;
+            }
+
             if (page.matches(".*\\..*")) { // ^[\w,\s-]+\.[A-Za-z]{2,}$
                 // if (page.matches("^[\\w,\\s-]+\\.[A-Za-z]{2,}$")) {
                 filePath = WEB_DIR + "/" + page;
@@ -198,57 +202,66 @@ public class SocketServer extends Thread {
         } else {
             filePath = WEB_DIR + "/" + DEFAULT_PAGE;
         }
-        final File fileOnSdCard = new File(sdCardDir, URLDecoder.decode(filePath));
-        InputStream fileInAssets;
-        try {
-            fileInAssets = assetManager.open(URLDecoder.decode(filePath));
-        } catch (FileNotFoundException e) {
-            fileInAssets = null;
-        }
-        if (fileOnSdCard.exists() || fileInAssets != null) {
-            String result = null;
-            try {
-                if (fileInAssets == null) {
-                    if (page.matches(".*\\.png") || page.matches(".*\\.jpg")) {
-                        byte[] fileContent = loadFileContents(fileOnSdCard.getPath());
-                        o.write("HTTP/1.1 200 OK\r\n".getBytes());
-                        if (page.matches(".*\\.png")) {
-                            o.write("Content-Type: image/png\r\n".getBytes());
-                        } else if (page.matches(".*\\.jpg")) {
-                            o.write("Content-Type: image/jpg\r\n".getBytes());
-                        }
-                        o.write(("Content-Length: " + fileContent.length + "\r\n").getBytes());
-                        o.write("\r\n".getBytes()); // End of headers
-                        o.write(fileContent);
-                        o.flush();
-                        o.close();
-                        bufferedWriter.flush();
-                    } else {
-                        final HttpResponse response = new HttpResponse(200, "OK");
-                        response.addHeader("Content-Type", "text/plain");
-                        result = response.toString();
-                        bufferedWriter.write(result);
-                    }
-                } else {
-                    final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(fileInAssets));
-                    HttpResponse response = createResponse(bufferedReader);
-                    o.write(response.toString().getBytes());
-                    o.flush();
-                    bufferedWriter.flush();
-                }
 
-            } catch (FileNotFoundException e) {
-                Log.d("FileNotFoundException", e.toString());
-            } catch (IOException e) {
-                Log.d("IOException", e.toString());
-            }
-            if (result != null) {
-                bufferedWriter.write(result);
-            } else {
-                bufferedWriter.write(HTTP_RESP_418.toString()); // TODO
-            }
+        if (isCmd) {
+            // request is command and so I will write the whole logic here.. it will need to be refactored.
+            String cmdWithArgs = page.replace("cmd/", "");
+            String[] cmdWithArgsArr = cmdWithArgs.split("%20");
+            // TODO
         } else {
-            bufferedWriter.write(HTTP_RESP_404.toString());
+
+            final File fileOnSdCard = new File(sdCardDir, URLDecoder.decode(filePath));
+            InputStream fileInAssets;
+            try {
+                fileInAssets = assetManager.open(URLDecoder.decode(filePath));
+            } catch (FileNotFoundException e) {
+                fileInAssets = null;
+            }
+            if (fileOnSdCard.exists() || fileInAssets != null) {
+                String result = null;
+                try {
+                    if (fileInAssets == null) {
+                        if (page.matches(".*\\.png") || page.matches(".*\\.jpg")) {
+                            byte[] fileContent = loadFileContents(fileOnSdCard.getPath());
+                            o.write("HTTP/1.1 200 OK\r\n".getBytes());
+                            if (page.matches(".*\\.png")) {
+                                o.write("Content-Type: image/png\r\n".getBytes());
+                            } else if (page.matches(".*\\.jpg")) {
+                                o.write("Content-Type: image/jpg\r\n".getBytes());
+                            }
+                            o.write(("Content-Length: " + fileContent.length + "\r\n").getBytes());
+                            o.write("\r\n".getBytes()); // End of headers
+                            o.write(fileContent);
+                            o.flush();
+                            o.close();
+                            bufferedWriter.flush();
+                        } else {
+                            final HttpResponse response = new HttpResponse(200, "OK");
+                            response.addHeader("Content-Type", "text/plain");
+                            result = response.toString();
+                            bufferedWriter.write(result);
+                        }
+                    } else {
+                        final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(fileInAssets));
+                        HttpResponse response = createResponse(bufferedReader);
+                        o.write(response.toString().getBytes());
+                        o.flush();
+                        bufferedWriter.flush();
+                    }
+
+                } catch (FileNotFoundException e) {
+                    Log.d("FileNotFoundException", e.toString());
+                } catch (IOException e) {
+                    Log.d("IOException", e.toString());
+                }
+                if (result != null) {
+                    bufferedWriter.write(result);
+                } else {
+                    bufferedWriter.write(HTTP_RESP_418.toString()); // TODO
+                }
+            } else {
+                bufferedWriter.write(HTTP_RESP_404.toString());
+            }
         }
         bufferedWriter.flush(); // Ensure all data is written out.
         bufferedWriter.close();
