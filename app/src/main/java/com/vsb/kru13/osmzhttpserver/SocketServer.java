@@ -192,15 +192,16 @@ public class SocketServer extends Thread {
                 isCmd = true;
             }
 
-            if (page.matches(".*\\..*")) { // ^[\w,\s-]+\.[A-Za-z]{2,}$
+            filePath = WEB_DIR + "/" + page;
+//            if (page.matches(".*\\..*")) { // ^[\w,\s-]+\.[A-Za-z]{2,}$
                 // if (page.matches("^[\\w,\\s-]+\\.[A-Za-z]{2,}$")) {
-                filePath = WEB_DIR + "/" + page;
-            } else {
-                filePath = WEB_DIR + "/" + page + ".html";
+//            } else {
+//                filePath = WEB_DIR + "/" + page + ".html";
 //                filePath = WEB_DIR  + page + ".html";
-            }
+//            }
         } else {
-            filePath = WEB_DIR + "/" + DEFAULT_PAGE;
+            filePath = WEB_DIR + "/" + page;
+//            filePath = WEB_DIR + "/" + DEFAULT_PAGE;
         }
 
         if (isCmd) {
@@ -234,7 +235,6 @@ public class SocketServer extends Thread {
             }
 
         } else {
-
             final File fileOnSdCard = new File(sdCardDir, URLDecoder.decode(filePath));
             InputStream fileInAssets;
             try {
@@ -242,10 +242,18 @@ public class SocketServer extends Thread {
             } catch (FileNotFoundException e) {
                 fileInAssets = null;
             }
+            boolean serverd = false;
             if (fileOnSdCard.exists() || fileInAssets != null) {
                 String result = null;
                 try {
-                    if (fileInAssets == null) {
+                    if (fileOnSdCard.isDirectory()) {
+                        HttpResponse response = serveDirectory(fileOnSdCard, filePath);
+                        o.write(response.toString().getBytes());
+                        o.flush();
+                        bufferedWriter.flush();
+                    } else if (fileInAssets == null) {
+                        // in if below is the old solution that needs to be refactored
+                        // and integrated with #5
                         if (page.matches(".*\\.png") || page.matches(".*\\.jpg")) {
                             byte[] fileContent = loadFileContents(fileOnSdCard.getPath());
                             o.write("HTTP/1.1 200 OK\r\n".getBytes());
@@ -262,9 +270,14 @@ public class SocketServer extends Thread {
                             bufferedWriter.flush();
                         } else {
                             final HttpResponse response = new HttpResponse(200, "OK");
-                            response.addHeader("Content-Type", "text/plain");
+//                            response.addHeader("Content-Type", "text/plain");
                             result = response.toString();
                             bufferedWriter.write(result);
+                        }
+                        if (result != null) {
+                            bufferedWriter.write(result);
+                        } else {
+                            bufferedWriter.write(HTTP_RESP_418.toString()); // TODO
                         }
                     } else {
                         final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(fileInAssets));
@@ -279,11 +292,7 @@ public class SocketServer extends Thread {
                 } catch (IOException e) {
                     Log.d("IOException", e.toString());
                 }
-                if (result != null) {
-                    bufferedWriter.write(result);
-                } else {
-                    bufferedWriter.write(HTTP_RESP_418.toString()); // TODO
-                }
+
             } else {
                 bufferedWriter.write(HTTP_RESP_404.toString());
             }
@@ -291,7 +300,6 @@ public class SocketServer extends Thread {
         bufferedWriter.flush(); // Ensure all data is written out.
         bufferedWriter.close();
     }
-
 
     public HttpResponse createResponse(BufferedReader bufferedReader) throws IOException {
         StringBuilder stringBuilder = new StringBuilder();
@@ -302,6 +310,7 @@ public class SocketServer extends Thread {
         }
         return createResponse(stringBuilder.toString());
     }
+
     public HttpResponse createResponse(String body) {
         HttpResponse response = new HttpResponse(200, "OK");
         response.addHeader("Content-Length", "" + body.length());
@@ -317,4 +326,72 @@ public class SocketServer extends Thread {
         return data;
     }
 
+    private HttpResponse serveDirectory(File directory, String uriPath) throws IOException {
+        File indexHtml = new File(directory, "index.html");
+        File indexHtm = new File(directory, "index.htm");
+        final HttpResponse result;
+        if (indexHtml.exists()) {
+            result = serveFile(indexHtml);
+        } else if (indexHtm.exists()) {
+            result = serveFile(indexHtm);
+        } else {
+            File[] files = directory.listFiles();
+            if (files != null) {
+                StringBuilder html = new StringBuilder("<html><body>");
+                html.append("<h1>Directory listing for ").append(directory.getName()).append("</h1>");
+                html.append("<ul>");
+
+                // add optional links to navigate in dir structure
+                if (!uriPath.equals(WEB_DIR)) {
+                    String parentPath = uriPath.substring(0, uriPath.lastIndexOf("/"));
+                    html.append("<li><a href=\"").append(parentPath).append("\">..</a></li>");
+                }
+
+                // add links to each file..
+                for (File file : files) {
+                    if (file.isDirectory()) {
+                        html.append("<li><a href=\"").append(uriPath).append("/").append(file.getName()).append("/\">")
+                                .append(file.getName()).append("/</a></li>");
+                    } else {
+                        html.append("<li><a href=\"").append(uriPath).append("/").append(file.getName()).append("\">")
+                                .append(file.getName()).append("</a></li>");
+                    }
+                }
+
+                html.append("</ul>");
+                html.append("</body></html>");
+
+                final HttpResponse response = new HttpResponse(200, "OK");
+//                response.addHeader("Content-Type", "text/plain");
+                response.setBody(html.toString());
+                result = response;
+            } else {
+                result = HTTP_RESP_404;
+            }
+        }
+        return result;
+    }
+
+    private HttpResponse serveFile(File file) throws IOException {
+        FileInputStream fis = new FileInputStream(file);
+        byte[] data = new byte[(int) file.length()];
+        fis.read(data);
+        fis.close();
+
+        /*
+        bufferedWriter.write("HTTP/1.1 200 OK\r\n");
+        bufferedWriter.write("Content-Type: text/html\r\n");
+        bufferedWriter.write("Content-Length: " + data.length + "\r\n");
+        bufferedWriter.write("\r\n");
+        bufferedWriter.write(new String(data));
+
+         */
+//        bufferedWriter.flush();
+        final HttpResponse response = new HttpResponse(200, "OK");
+//        response.addHeader("Content-Type", "text/plain");
+        response.setBody(new String(data));
+        return response;
+    }
 }
+
+
