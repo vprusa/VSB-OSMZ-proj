@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS Telemetry Dashboard</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</head>
+<body>
+<h1>GPS Telemetry Dashboard</h1>
+<div id="gpsData">
+    <p>Latitude: <span id="latitude"></span></p>
+    <p>Longitude: <span id="longitude"></span></p>
+    <p>Altitude: <span id="altitude"></span></p>
+</div>
+
+<script>
+    function fetchGPSData() {
+        $.ajax({
+            url: '/streams/telemetry',
+            type: 'GET',
+            dataType: 'json',
+            success: function(data) {
+                $('#latitude').text(data.latitude);
+                $('#longitude').text(data.longitude);
+                $('#altitude').text(data.altitude);
+            }
+        });
+    }
+    fetchGPSData();
+    // Fetch GPS data every 5 seconds
+    setInterval(fetchGPSData, 1000);
+</script>
+</body>
+</html>

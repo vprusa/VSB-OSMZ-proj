@@ -125,13 +125,12 @@ public class TelemetryCollector implements SensorEventListener, LocationListener
      */
     @Override
     public void onLocationChanged(Location location) {
-        // Process GPS data and store it in telemetryData
         synchronized (this) {
             try {
                 telemetryData.put("latitude", location.getLatitude());
                 telemetryData.put("longitude", location.getLongitude());
+                telemetryData.put("altitude", location.getAltitude());
             } catch (Exception e) {
-//                e.printStackTrace();
                 logger.logError(ERR_TAG, e.getMessage());
             }
         }

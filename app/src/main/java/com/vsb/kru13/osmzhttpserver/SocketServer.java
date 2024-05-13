@@ -1,6 +1,7 @@
 package com.vsb.kru13.osmzhttpserver;
 
 import android.content.Context;
+import android.content.res.AssetManager;
 import android.util.Log;
 
 
@@ -32,6 +33,7 @@ import java.util.concurrent.Semaphore;
 
 public class SocketServer extends Thread {
     private final AppLogger logger;
+    private final AssetManager assetManager;
     private ServerSocket serverSocket;
     public final int port = 12345;
     private boolean bRunning;
@@ -71,15 +73,17 @@ public class SocketServer extends Thread {
 
     private final TelemetryCollector telemetryCollector;
 
-    public SocketServer(Context context, File sdCardDir, TelemetryCollector telemetryCollector) {
-        this(context, sdCardDir, MAX_THREADS, telemetryCollector);
+    public SocketServer(Context context, File sdCardDir, TelemetryCollector telemetryCollector, AssetManager assetManager) {
+        this(context, sdCardDir, MAX_THREADS, telemetryCollector, assetManager);
     }
     public SocketServer(Context context,
                         File sdCardDir,
                         int maxThreads,
-                        TelemetryCollector telemetryCollector
+                        TelemetryCollector telemetryCollector,
+                        AssetManager assetManager
 
     ) {
+        this.assetManager = assetManager;
         this.telemetryCollector = telemetryCollector;
         this.sdCardDir = sdCardDir;
         this.semaphore = new Semaphore(maxThreads);
@@ -147,6 +151,7 @@ public class SocketServer extends Thread {
                 );
                 out.write(response.toString());
                 out.flush();
+                out.close();
             }
         } else {
             writeFile(out, uri, o); // Existing file serving logic
@@ -180,43 +185,58 @@ public class SocketServer extends Thread {
         // simple URI router
         if (page != null && !page.isEmpty() && !page.equalsIgnoreCase("/")) {
             // is page a filename?
+            if (page.startsWith("/")) {
+                page = page.replaceFirst("/", "");
+            }
             if (page.matches(".*\\..*")) { // ^[\w,\s-]+\.[A-Za-z]{2,}$
                 // if (page.matches("^[\\w,\\s-]+\\.[A-Za-z]{2,}$")) {
                 filePath = WEB_DIR + "/" + page;
             } else {
                 filePath = WEB_DIR + "/" + page + ".html";
+//                filePath = WEB_DIR  + page + ".html";
             }
         } else {
             filePath = WEB_DIR + "/" + DEFAULT_PAGE;
         }
         final File fileOnSdCard = new File(sdCardDir, URLDecoder.decode(filePath));
-
-        if (fileOnSdCard.exists()) {
+        InputStream fileInAssets;
+        try {
+            fileInAssets = assetManager.open(URLDecoder.decode(filePath));
+        } catch (FileNotFoundException e) {
+            fileInAssets = null;
+        }
+        if (fileOnSdCard.exists() || fileInAssets != null) {
             String result = null;
-            try (final InputStream inputStream = new FileInputStream(fileOnSdCard)) {
-                final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
-                final HttpResponse response = createResponse(bufferedReader);
-                if (page.matches(".*\\.png") || page.matches(".*\\.jpg")) {
-                    result = null;
-                    byte[] fileContent = loadFileContents(fileOnSdCard.getPath());
-
-//                    o.write("HTTP/1.1 200 OK\r\n".getBytes());
-                    o.write(response.getVersion().getBytes());
-                    o.write("HTTP/1.1 200 OK\r\n".getBytes());
-                    if (page.matches(".*\\.png")) {
-                        o.write("Content-Type: image/png\r\n".getBytes());
-                    } else if (page.matches(".*\\.jpg")) {
-                        response.addHeader("Content-Type", "image/jpg");
+            try {
+                if (fileInAssets == null) {
+                    if (page.matches(".*\\.png") || page.matches(".*\\.jpg")) {
+                        byte[] fileContent = loadFileContents(fileOnSdCard.getPath());
+                        o.write("HTTP/1.1 200 OK\r\n".getBytes());
+                        if (page.matches(".*\\.png")) {
+                            o.write("Content-Type: image/png\r\n".getBytes());
+                        } else if (page.matches(".*\\.jpg")) {
+                            o.write("Content-Type: image/jpg\r\n".getBytes());
+                        }
+                        o.write(("Content-Length: " + fileContent.length + "\r\n").getBytes());
+                        o.write("\r\n".getBytes()); // End of headers
+                        o.write(fileContent);
+                        o.flush();
+                        o.close();
+                        bufferedWriter.flush();
+                    } else {
+                        final HttpResponse response = new HttpResponse(200, "OK");
+                        response.addHeader("Content-Type", "text/plain");
+                        result = response.toString();
+                        bufferedWriter.write(result);
                     }
-                    o.write(("Content-Length: " + fileContent.length + "\r\n").getBytes());
-                    o.write("\r\n".getBytes()); // End of headers
-                    o.write(fileContent);
+                } else {
+                    final BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(fileInAssets));
+                    HttpResponse response = createResponse(bufferedReader);
+                    o.write(response.toString().getBytes());
                     o.flush();
                     bufferedWriter.flush();
-                } else {
-                    response.addHeader("Content-Type", "text/plain");
-                    result = response.toString();
                 }
+
             } catch (FileNotFoundException e) {
                 Log.d("FileNotFoundException", e.toString());
             } catch (IOException e) {
@@ -231,6 +251,7 @@ public class SocketServer extends Thread {
             bufferedWriter.write(HTTP_RESP_404.toString());
         }
         bufferedWriter.flush(); // Ensure all data is written out.
+        bufferedWriter.close();
     }
 
 
