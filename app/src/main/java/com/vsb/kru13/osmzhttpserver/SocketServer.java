@@ -207,7 +207,32 @@ public class SocketServer extends Thread {
             // request is command and so I will write the whole logic here.. it will need to be refactored.
             String cmdWithArgs = page.replace("cmd/", "");
             String[] cmdWithArgsArr = cmdWithArgs.split("%20");
-            // TODO
+            // TODO #5
+
+            ProcessBuilder processBuilder = new ProcessBuilder(cmdWithArgsArr);
+            processBuilder.redirectErrorStream(true);
+
+            try {
+                Process process = processBuilder.start();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+
+                StringBuilder output = new StringBuilder();
+                output.append("<html><body><pre>");
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line).append("\n");
+                }
+                output.append("</pre></body></html>");
+
+                HttpResponse response = createResponse(output.toString());
+                o.write(response.toString().getBytes());
+                o.flush();
+                bufferedWriter.flush();
+            } catch (IOException e) {
+                Log.e("SERVER", "Error executing command", e);
+                bufferedWriter.write(HTTP_RESP_404.toString());
+            }
+
         } else {
 
             final File fileOnSdCard = new File(sdCardDir, URLDecoder.decode(filePath));
