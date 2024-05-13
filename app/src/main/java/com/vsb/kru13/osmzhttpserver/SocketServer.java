@@ -184,6 +184,7 @@ public class SocketServer extends Thread {
         boolean isCmd = false;
         if (page != null && !page.isEmpty() && !page.equalsIgnoreCase("/")) {
             // is page a filename?
+            // TODO finalize page for code readability
             if (page.startsWith("/")) {
                 page = page.replaceFirst("/", "");
             }
@@ -193,15 +194,8 @@ public class SocketServer extends Thread {
             }
 
             filePath = WEB_DIR + "/" + page;
-//            if (page.matches(".*\\..*")) { // ^[\w,\s-]+\.[A-Za-z]{2,}$
-                // if (page.matches("^[\\w,\\s-]+\\.[A-Za-z]{2,}$")) {
-//            } else {
-//                filePath = WEB_DIR + "/" + page + ".html";
-//                filePath = WEB_DIR  + page + ".html";
-//            }
         } else {
             filePath = WEB_DIR + "/" + page;
-//            filePath = WEB_DIR + "/" + DEFAULT_PAGE;
         }
 
         if (isCmd) {
@@ -377,16 +371,6 @@ public class SocketServer extends Thread {
         byte[] data = new byte[(int) file.length()];
         fis.read(data);
         fis.close();
-
-        /*
-        bufferedWriter.write("HTTP/1.1 200 OK\r\n");
-        bufferedWriter.write("Content-Type: text/html\r\n");
-        bufferedWriter.write("Content-Length: " + data.length + "\r\n");
-        bufferedWriter.write("\r\n");
-        bufferedWriter.write(new String(data));
-
-         */
-//        bufferedWriter.flush();
         final HttpResponse response = new HttpResponse(200, "OK");
 //        response.addHeader("Content-Type", "text/plain");
         response.setBody(new String(data));
