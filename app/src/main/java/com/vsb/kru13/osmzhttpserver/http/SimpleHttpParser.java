@@ -22,18 +22,35 @@ public class SimpleHttpParser {
         }
         final HttpRequest request = new HttpRequest(requestParts[0], requestParts[1], requestParts[2]);
 
-        // Parse headers
-        String headerLine;
-        while ((headerLine = reader.readLine()) != null && !headerLine.isEmpty()) {
-            String[] headerParts = headerLine.split(": ");
-            if (headerParts.length != 2) {
-                throw new IOException("Invalid header line: " + headerLine);
+        if (requestLine.contains("upload")) {
+            String headerLine;
+            int i = 0;
+            while ((headerLine = reader.readLine()) != null && !headerLine.isEmpty()) {
+                i++;
+                String[] headerParts = headerLine.split(": ");
+                if (headerParts.length != 2) {
+                    throw new IOException("Invalid header line: " + headerLine);
+                }
+                request.addHeader(headerParts[0], headerParts[1]);
+//                if (i > 5) {
+//                    break;
+//                }
             }
-            request.addHeader(headerParts[0], headerParts[1]);
+            return request;
+        } else {
+            // Parse headers
+            String headerLine;
+            while ((headerLine = reader.readLine()) != null && !headerLine.isEmpty()) {
+                String[] headerParts = headerLine.split(": ");
+                if (headerParts.length != 2) {
+                    throw new IOException("Invalid header line: " + headerLine);
+                }
+                request.addHeader(headerParts[0], headerParts[1]);
+            }
+
+            // Body parsing is omitted for simplicity; it could be added here based on "Content-Length" or chunked transfer encoding.
+
+            return request;
         }
-
-        // Body parsing is omitted for simplicity; it could be added here based on "Content-Length" or chunked transfer encoding.
-
-        return request;
     }
 }

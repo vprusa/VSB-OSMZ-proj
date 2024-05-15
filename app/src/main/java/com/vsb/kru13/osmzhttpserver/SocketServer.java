@@ -328,25 +328,29 @@ public class SocketServer extends Thread {
         boolean boundaryReached = false;
 
         ByteArrayOutputStream fileOutput = new ByteArrayOutputStream();
-        while ((bytesRead = in.read(buffer)) != -1) {
-            totalBytesRead += bytesRead;
+        if (in.available() > 0) {
+            while ((bytesRead = in.read(buffer)) != -1) {
+                totalBytesRead += bytesRead;
 
-            String chunk = null;
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
-                chunk = new String(buffer, 0, bytesRead, StandardCharsets.UTF_8);
-            }
-            int boundaryIndex = chunk.indexOf("--" + boundary);
-            if (boundaryIndex != -1) {
-                fileOutput.write(buffer, 0, boundaryIndex);
-                boundaryReached = true;
-                break;
-            } else {
-                fileOutput.write(buffer, 0, bytesRead);
-            }
+                String chunk = null;
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+                    chunk = new String(buffer, 0, bytesRead, StandardCharsets.UTF_8);
+                }
+                int boundaryIndex = chunk.indexOf("--" + boundary);
+                if (boundaryIndex != -1) {
+                    fileOutput.write(buffer, 0, boundaryIndex);
+                    boundaryReached = true;
+                    break;
+                } else {
+                    fileOutput.write(buffer, 0, bytesRead);
+                }
 
-            if (totalBytesRead >= contentLength) {
-                break;
+                if (totalBytesRead >= contentLength) {
+                    break;
+                }
             }
+        } else {
+            logger.logError("UPLOAD_FILE_ERR", "Upload file error, no more data.");
         }
 
         if (boundaryReached || totalBytesRead >= contentLength) {
