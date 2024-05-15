@@ -48,12 +48,12 @@ public class AppLogger {
 
     private void appLog(String filePath, String tag, Socket s, String msg) {
         final File f = new File(sdCardDir, filePath);
+        final String address = s != null ? s.getInetAddress().getHostAddress() : "unknown";
+        final Date nowTime = new Date();
+        final String now = sdf.format(nowTime);
+        final String log = String.format("%s - %s - address: %s, msg: %s\n\r", now, tag, address, msg);
+        Log.i(tag, log);
         if (f.exists()) {
-            final String address = s != null ? s.getInetAddress().getHostAddress() : "unknown";
-            final Date nowTime = new Date();
-            final String now = sdf.format(nowTime);
-            final String log = String.format("%s - %s - address: %s, msg: %s\n\r", now, tag, address, msg);
-            Log.i(tag, log);
             if (f.exists() && f.canWrite()) {
                 // TODO add semaphore?
                 try (FileWriter writer = new FileWriter(f)) {

@@ -2,6 +2,11 @@ package com.vsb.kru13.osmzhttpserver;
 
 import android.content.Context;
 import android.content.res.AssetManager;
+import android.graphics.ImageFormat;
+import android.graphics.Rect;
+import android.graphics.YuvImage;
+import android.hardware.Camera;
+import android.os.Build;
 import android.util.Log;
 
 
@@ -13,8 +18,10 @@ import com.vsb.kru13.osmzhttpserver.http.SimpleHttpParser;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -40,6 +47,8 @@ public class SocketServer extends Thread {
     private final File sdCardDir;
     private final Semaphore semaphore;
     private final ExecutorService threadPool;
+
+    private Camera2CaptureSession camera2CaptureSession;
 
     private static final String WEB_DIR = "web";
     private static final String DEFAULT_PAGE = "index.html";
@@ -72,6 +81,9 @@ public class SocketServer extends Thread {
     );
 
     private final TelemetryCollector telemetryCollector;
+    private Camera camera;
+    private boolean streaming;
+    private final Object streamLock = new Object();
 
     public SocketServer(Context context, File sdCardDir, TelemetryCollector telemetryCollector, AssetManager assetManager) {
         this(context, sdCardDir, MAX_THREADS, telemetryCollector, assetManager);
@@ -88,9 +100,10 @@ public class SocketServer extends Thread {
         this.sdCardDir = sdCardDir;
         this.semaphore = new Semaphore(maxThreads);
         this.threadPool = Executors.newFixedThreadPool(maxThreads);
-
         logger = new AppLogger(sdCardDir);
-//        telemetryCollector = new TelemetryCollector(context, logger);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            this.camera2CaptureSession = new Camera2CaptureSession(context, logger);
+        }
     }
 
     public void close() {
@@ -98,6 +111,9 @@ public class SocketServer extends Thread {
             bRunning = false;
             serverSocket.close();
             threadPool.shutdownNow();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                camera2CaptureSession.stopCameraStream();
+            }
         } catch (IOException e) {
             Log.e("SERVER", "Error while closing server", e);
         }
@@ -130,6 +146,13 @@ public class SocketServer extends Thread {
         }
     }
 
+    /**
+     * Handle Client connections.
+     *
+     * @param client
+     * @throws IOException
+     * @throws JSONException
+     */
     public void handleClient(Socket client) throws IOException, JSONException {
         logger.logAccess(client, "Socket Accepted");
         Log.d("SERVER", "Socket Accepted");
@@ -152,6 +175,10 @@ public class SocketServer extends Thread {
                 out.write(response.toString());
                 out.flush();
                 out.close();
+            }
+        } else if (uri.equals("/camera/stream")) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                camera2CaptureSession.startCameraStream(o);//client);
             }
         } else {
             writeFile(out, uri, o); // Existing file serving logic
@@ -236,7 +263,6 @@ public class SocketServer extends Thread {
             } catch (FileNotFoundException e) {
                 fileInAssets = null;
             }
-            boolean serverd = false;
             if (fileOnSdCard.exists() || fileInAssets != null) {
                 String result = null;
                 try {
@@ -376,6 +402,7 @@ public class SocketServer extends Thread {
         response.setBody(new String(data));
         return response;
     }
+
 }
 
 

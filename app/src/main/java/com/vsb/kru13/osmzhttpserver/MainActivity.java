@@ -20,6 +20,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private SocketServer s;
     private static final int READ_EXTERNAL_STORAGE = 1;
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
+    private static final int CAMERA_PERMISSION_REQUEST_CODE = 1;
 
     private TelemetryCollector telemetryCollector;
     private AppLogger appLogger;
@@ -42,6 +43,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         this.telemetryCollector = new TelemetryCollector(this.getApplicationContext(), appLogger);
         s = new SocketServer(this.getApplicationContext(), sdcard, this.telemetryCollector, getAssets());
         requestGPSPermissions();
+        requestCameraPermissions();
         s.start();
     }
 
@@ -63,6 +65,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             telemetryCollector.startLocationUpdates();
         }
     }
+
+    private void requestCameraPermissions() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                != PackageManager.PERMISSION_GRANTED) {
+            // Requesting the permission
+            ActivityCompat.requestPermissions(this, new String[]{
+                    Manifest.permission.CAMERA
+            }, CAMERA_PERMISSION_REQUEST_CODE);
+        } else {
+            // Permission has already been granted
+//            telemetryCollector.startLocationUpdates();
+            appLogger.logError("CAMERA", "Camera permissions not granted");
+        }
+    }
+
 
     @Override
     public void onClick(View v) {
