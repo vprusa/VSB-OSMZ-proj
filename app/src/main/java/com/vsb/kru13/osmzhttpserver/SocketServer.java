@@ -25,6 +25,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -33,7 +34,10 @@ import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
@@ -51,6 +55,7 @@ public class SocketServer extends Thread {
     private Camera2CaptureSession camera2CaptureSession;
 
     private static final String WEB_DIR = "web";
+    private static final String UPLOAD_DIR = WEB_DIR + "/upload";
     private static final String DEFAULT_PAGE = "index.html";
 
     private static final String HTTP_NOT_FOUND_LABEL = "Not Found";
@@ -71,6 +76,10 @@ public class SocketServer extends Thread {
      */
     private static final HttpResponse HTTP_RESP_418 = new HttpResponse(
             418, "418", "I'm a teapot"
+    );
+
+    private static final HttpResponse HTTP_RESP_FORBIDDEN = new HttpResponse(
+            403, "403", "Forbidden"
     );
 
     private static final HttpResponse HTTP_RESP_503 = new HttpResponse(
@@ -119,6 +128,10 @@ public class SocketServer extends Thread {
         }
     }
 
+    /**
+     * Async run method that handles client connections and starts parallel execution in
+     * thread pool.
+     */
     public void run() {
         try {
             serverSocket = new ServerSocket(port);
@@ -155,40 +168,280 @@ public class SocketServer extends Thread {
      */
     public void handleClient(Socket client) throws IOException, JSONException {
         logger.logAccess(client, "Socket Accepted");
-        Log.d("SERVER", "Socket Accepted");
 
         final OutputStream o = client.getOutputStream();
         final BufferedWriter out = new BufferedWriter(new OutputStreamWriter(o));
-
-        final HttpRequest request = SimpleHttpParser.parseRequest(client.getInputStream());
+        final InputStream is = client.getInputStream();
+        final HttpRequest request = SimpleHttpParser.parseRequest(is);
         final String uri = request.getUri();
-
-        if (uri.equals("/streams/telemetry")) {
+        final HttpResponse response;
+        if (request.getMethod().equals("POST")) {
+            response = handlePostRequest(is, request);
+        } else if (request.getMethod().equals("DELETE")) {
+            response = handleDeleteRequest(uri);
+        } else if (uri.equals("/streams/telemetry")) {
             if (telemetryCollector != null) {
                 final JSONObject telemetryData = telemetryCollector.getTelemetryData();
-                final HttpResponse response = new HttpResponse(
+                response = new HttpResponse(
                         200,
                         "OK",
                         telemetryData.toString(),
                         Collections.singletonMap("Content-Type", "application/json")
                 );
-                out.write(response.toString());
-                out.flush();
-                out.close();
+            } else {
+                response = HTTP_RESP_FORBIDDEN;
             }
         } else if (uri.equals("/camera/stream")) {
+            response = null;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 camera2CaptureSession.startCameraStream(o);//client);
             }
         } else {
+            response = null;
             writeFile(out, uri, o); // Existing file serving logic
         }
-        out.flush();
-
-        // client.close(); // TODO reevaluate closing the socket
-        Log.d("SERVER", "Socket Closed");
+        if (response != null) {
+            out.write(response.toString());
+            out.flush();
+            out.close();
+        } else {
+            out.flush();
+        }
         logger.logAccess(client, "Socket Closed");
     }
+
+    /**
+     * Deletes file at path given in uri.
+     * Deletes only on sd card and in 'web' dir.
+     *
+     * @param uri
+     * @return
+     * @throws IOException
+     */
+    private HttpResponse handleDeleteRequest(String uri) throws IOException {
+        final HttpResponse response;
+
+        if (!uri.startsWith("/" + UPLOAD_DIR + "/")) {
+            return HTTP_RESP_FORBIDDEN;
+        }
+
+        final String decodedUri = URLDecoder.decode(uri, "UTF-8");
+        final File fileToDelete = new File(sdCardDir, decodedUri);
+
+        if (fileToDelete.exists() && fileToDelete.isFile() && fileToDelete.getAbsolutePath().startsWith(sdCardDir.getAbsolutePath() + "/" + WEB_DIR)) {
+            if (fileToDelete.delete()) {
+                response = new HttpResponse(200, "OK", "File deleted successfully");
+            } else {
+                response = new HttpResponse(500, "Internal Server Error", "Failed to delete file");
+            }
+        } else {
+            response = HTTP_RESP_404;
+        }
+
+        return response;
+    }
+
+    /**
+     * Handles post request.
+     *
+     * @param in InputStream that reads input file.
+     * @param request
+     * @return
+     * @throws IOException
+     */
+    private HttpResponse handlePostRequest(InputStream in, HttpRequest request) throws IOException {
+        /*
+        final String contentType = request.getHeaders().get("Content-Type");
+        if (contentType == null) {
+            return HTTP_RESP_418;
+        }
+        final String boundary = getBoundary(contentType);
+        if (boundary == null) {
+            return HTTP_RESP_418;
+        }
+
+        File uploadDir = new File(sdCardDir, UPLOAD_DIR);
+        if (!uploadDir.exists()) {
+            uploadDir.mkdirs();
+            // TODO check and log success,
+            // TODO move to constructor
+        }
+
+        String line;
+        if (request.getUri().startsWith("/upload")) {
+            String[] splitRequestUri = request.getUri().split("\\?");
+            if(splitRequestUri.length > 1) {
+                String[] fileNamesWithPrefix = splitRequestUri[1].split("&");
+                for(String filePathWithPrefix : fileNamesWithPrefix) {
+                    String filepathPrefix = "filepath=";
+                    if (filePathWithPrefix.startsWith(filepathPrefix)) {
+                        final String filePath = filePathWithPrefix.replace(filepathPrefix, "");
+
+                        if (!filePath.startsWith(UPLOAD_DIR + "/")) {
+                            return HTTP_RESP_FORBIDDEN;
+                        }
+
+                        byte[] boundaryBytes = ("--" + boundary).getBytes();
+                        byte[] endBoundaryBytes = ("--" + boundary + "--").getBytes();
+
+                        try (BufferedReader reader = new BufferedReader(new InputStreamReader(in))) {
+                            while ((line = reader.readLine()) != null) {
+                                if (line.contains(new String(boundaryBytes))) {
+                                    return handleFilePart(reader, in, filePath);
+                                } else if (line.contains(new String(endBoundaryBytes))) {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+        } else {
+
+        }
+
+        // TODO single return statement
+        return HTTP_RESP_418; // TODO other response
+
+         */
+
+        final String contentType = request.getHeaders().get("Content-Type");
+        if (contentType == null) {
+            return HTTP_RESP_418;
+        }
+        final String boundary = getBoundary(contentType);
+        if (boundary == null) {
+            return HTTP_RESP_418;
+        }
+
+        String contentLengthStr = request.getHeaders().get("Content-Length");
+        if (contentLengthStr == null) {
+            return HTTP_RESP_418;
+        }
+
+        int contentLength = Integer.parseInt(contentLengthStr);
+
+        byte[] buffer = new byte[contentLength];
+        int bytesRead;
+        int totalBytesRead = 0;
+        boolean boundaryReached = false;
+
+        ByteArrayOutputStream fileOutput = new ByteArrayOutputStream();
+        while ((bytesRead = in.read(buffer)) != -1) {
+            totalBytesRead += bytesRead;
+
+            String chunk = null;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+                chunk = new String(buffer, 0, bytesRead, StandardCharsets.UTF_8);
+            }
+            int boundaryIndex = chunk.indexOf("--" + boundary);
+            if (boundaryIndex != -1) {
+                fileOutput.write(buffer, 0, boundaryIndex);
+                boundaryReached = true;
+                break;
+            } else {
+                fileOutput.write(buffer, 0, bytesRead);
+            }
+
+            if (totalBytesRead >= contentLength) {
+                break;
+            }
+        }
+
+        if (boundaryReached || totalBytesRead >= contentLength) {
+            String fileName = getFileNameFromContentDisposition(request.getHeaders().get("Content-Disposition"));
+            if (fileName == null) {
+                return HTTP_RESP_418;
+            }
+
+            File file = new File(sdCardDir, fileName);
+            try (FileOutputStream fos = new FileOutputStream(file)) {
+                fileOutput.writeTo(fos);
+            }
+
+            HttpResponse response = new HttpResponse(200, "OK");
+            return response;
+        } else {
+            return HTTP_RESP_418;
+        }
+    }
+
+    private String getBoundary(String contentType) {
+        String[] parts = contentType.split(";");
+        for (String part : parts) {
+            if (part.trim().startsWith("boundary=")) {
+                return part.trim().substring(9);
+            }
+        }
+        return null;
+    }
+
+    private HttpResponse handleFilePart(BufferedReader reader, InputStream in, String filePath) throws IOException {
+        /*
+        String line;
+        List<String> fileNames = new ArrayList<>();
+        while ((line = reader.readLine()) != null && !line.isEmpty()) {
+            if (line.startsWith("Content-Disposition")) {
+//                fileName = getFileNameFromContentDisposition(line);
+                String[] parts = line.split(";");
+                for (String part : parts) {
+                    if (part.trim().startsWith("filename=")) {
+                        final String fileName = part.trim().substring(10).replace("\"", "");
+                        fileNames.add(fileName);
+                    }
+                }
+            }
+        }
+
+        if (fileNames.isEmpty()) {
+            return HTTP_RESP_404;
+        }
+
+        for(String fileName : fileNames) {
+            File file = new File(sdCardDir, fileName);
+            boolean result = file.delete();
+            try (FileOutputStream fos = new FileOutputStream(file)) {
+                int b;
+                while ((b = reader.read()) != -1) {
+                    fos.write(b);
+                }
+            }
+        }
+        return new HttpResponse(200, "OK");
+        */
+        String line;
+        String fileName = null;
+        while ((line = reader.readLine()) != null && !line.isEmpty()) {
+            if (line.startsWith("Content-Disposition")) {
+                fileName = getFileNameFromContentDisposition(line);
+            }
+        }
+
+        if (fileName == null) {
+            return HTTP_RESP_404;
+        }
+
+//        File file = new File(sdCardDir, fileName);
+        File file = new File(sdCardDir, filePath);
+        try (FileOutputStream fos = new FileOutputStream(file)) {
+            int b;
+            while ((b = reader.read()) != -1) {
+                fos.write(b);
+            }
+        }
+        HttpResponse response = new HttpResponse(200, "OK");
+        return  response;
+    }
+
+    private String getFileNameFromContentDisposition(String contentDisposition) {
+        String[] parts = contentDisposition.split(";");
+        for (String part : parts) {
+            if (part.trim().startsWith("filename=")) {
+                return part.trim().substring(10).replace("\"", "");
+            }
+        }
+        return null;    }
 
     private void sendServerBusy(Socket client) {
         try (OutputStream out = client.getOutputStream()) {
